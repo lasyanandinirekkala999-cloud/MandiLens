@@ -1,0 +1,6 @@
+{
+  "name": "MandiLens",
+  "description": "Transparent agricultural wholesale market rates, supply chain margin visibility, and freight-adjusted farmgate price intelligence for FPOs, farmers, and commodity buyers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
