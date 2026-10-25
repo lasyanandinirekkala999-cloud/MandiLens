@@ -223,8 +223,11 @@ function MandiLensShell() {
     <div className="min-h-screen flex flex-col bg-[#F7F7F2] text-[#161A18]">
       <Navbar onOpenAuth={() => setAuthModalOpen(true)} />
       <main className="flex-1">
-        {/* Landing Hero with Interactive Farmer-Market Decision Preview */}
-        <HeroSection onApplyPreset={handleApplyHeroPreset} />
+        {/* Landing Hero with Instant Mandi Price Search & Smart Selling Decision Preview */}
+        <HeroSection
+          onApplyPreset={handleApplyHeroPreset}
+          onQuickSearch={(query) => setExternalSearchQuery(query)}
+        />
 
         {/* Main Dashboard (#dashboard): Selector, Top 4 KPI Cards, AI Recommendation Centerpiece & View Why Waterfall */}
         <SmartDecisionOverview
@@ -239,7 +242,7 @@ function MandiLensShell() {
           onAskAdvisor={handleAskAdvisorFromDashboard}
         />
 
-        {/* Markets (#markets): Searchable APMC Price Board + Multi-Mandi Profit Comparison Calculator */}
+        {/* Searchable Price Dashboard (#price-dashboard) + Mandi Comparison Calculator (#comparison-calculator) */}
         <MandiBoard
           records={allRecords}
           externalSearchQuery={externalSearchQuery}
@@ -260,6 +263,7 @@ function MandiLensShell() {
           allRecords={allRecords}
           comparedLotIds={comparedIds}
           selectedCorridorId={selectedCorridorId}
+          externalLotQtl={quantityQtl}
           onCorridorChange={(corridorId) => {
             setComparedIds([]);
             setSelectedCorridorId(corridorId);

@@ -20,9 +20,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
     .slice(0, 14);
 
   const navItems = [
-    { href: '#dashboard', label: 'Dashboard' },
-    { href: '#markets', label: 'Markets' },
-    { href: '#price-intelligence', label: 'Price Intelligence' },
+    { href: '#dashboard', label: 'Smart Decision' },
+    { href: '#price-dashboard', label: 'Price Dashboard' },
+    { href: '#comparison-calculator', label: 'Comparison Calculator' },
     { href: '#ai-advisor', label: 'AI Advisor' },
     { href: '#reports', label: 'Reports' },
   ];
@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
         {/* Zone 2: 5 concise single-line text navigation links */}
         <nav
           aria-label="Primary"
-          className="hidden md:flex items-center gap-7 text-sm font-medium text-[#4A524D]"
+          className="hidden md:flex items-center gap-6 lg:gap-7 text-sm font-medium text-[#4A524D]"
         >
           {navItems.map((item) => (
             <a

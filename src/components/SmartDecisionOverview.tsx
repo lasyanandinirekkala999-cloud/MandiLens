@@ -140,9 +140,24 @@ export const SmartDecisionOverview: React.FC<SmartDecisionOverviewProps> = ({
             </h2>
           </div>
 
-          <div className="text-xs text-[#4A524D] font-mono tabular-nums">
-            Active Lot: <strong className="text-[#161A18]">{quantityQtl} Quintals</strong> ·{' '}
-            <strong className="text-[#161A18]">{crop}</strong>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-[#4A524D]">
+            <span className="font-mono tabular-nums">
+              Active Lot: <strong className="text-[#161A18]">{quantityQtl} Quintals</strong> ·{' '}
+              <strong className="text-[#161A18]">{crop}</strong>
+            </span>
+            <span aria-hidden="true">·</span>
+            <a
+              href="#price-dashboard"
+              className="font-semibold text-[#0F2F1E] hover:underline underline-offset-4 whitespace-nowrap"
+            >
+              Price Dashboard →
+            </a>
+            <a
+              href="#comparison-calculator"
+              className="font-semibold text-[#15803D] hover:underline underline-offset-4 whitespace-nowrap"
+            >
+              Comparison Calculator →
+            </a>
           </div>
         </div>
 

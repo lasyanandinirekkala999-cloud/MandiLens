@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Calculator, Search } from 'lucide-react';
 import {
   computeSmartSellingDecision,
   SmartCropId,
@@ -8,6 +8,7 @@ import {
 
 interface HeroSectionProps {
   onApplyPreset: (location: SmartLocationId, crop: SmartCropId, quantityQtl: number) => void;
+  onQuickSearch: (query: string) => void;
 }
 
 interface PreviewPreset {
@@ -42,8 +43,12 @@ const PREVIEW_PRESETS: PreviewPreset[] = [
   },
 ];
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ onApplyPreset }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({
+  onApplyPreset,
+  onQuickSearch,
+}) => {
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PREVIEW_PRESETS[0].id);
+  const [heroSearch, setHeroSearch] = useState<string>('');
 
   const activePreset = useMemo(
     () => PREVIEW_PRESETS.find((p) => p.id === selectedPresetId) || PREVIEW_PRESETS[0],
@@ -74,10 +79,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onApplyPreset }) => {
     document.getElementById('dashboard')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleExploreIntelligence = () => {
-    document
-      .getElementById('price-intelligence')
-      ?.scrollIntoView({ behavior: 'smooth' });
+  const handleHeroSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onQuickSearch(heroSearch);
+    document.getElementById('price-dashboard')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
@@ -85,7 +90,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onApplyPreset }) => {
       <div className="max-w-7xl mx-auto px-6 pt-9 pb-11 lg:pt-14 lg:pb-14">
         {/* 2-Column Balanced Split with items-stretch */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-stretch">
-          {/* Left Column: Core Proposition, Headline, CTAs & Trust Strip */}
+          {/* Left Column: Proposition, Instant Price Search, CTAs & Trust Strip */}
           <div className="lg:col-span-6 flex flex-col justify-between py-1">
             <div>
               {/* Trust Strip: Clean unboxed typography with dot separators (Zero Pill Discipline) */}
@@ -110,44 +115,81 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onApplyPreset }) => {
                 sell their produce.
               </p>
 
-              <p className="mt-3 text-sm font-medium text-[#16422B] max-w-[54ch]">
-                “We don&apos;t just show market prices. We tell farmers where they should sell and
-                why.”
-              </p>
-
               {/* Primary & Secondary CTAs */}
-              <div className="mt-7 flex flex-wrap items-center gap-3.5">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={handleCheckBestOption}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[#0F2F1E] rounded-xl hover:bg-[#16422B] transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F2F1E]"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-[#0F2F1E] rounded-xl hover:bg-[#16422B] transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F2F1E]"
                 >
                   <span>Check Best Selling Option →</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleExploreIntelligence}
-                  className="inline-flex items-center justify-center px-5 py-3 text-sm font-semibold text-[#161A18] bg-white border border-[#D5D8D0] rounded-xl hover:bg-[#EFEFE8] transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F2F1E]"
+                <a
+                  href="#comparison-calculator"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-[#161A18] bg-white border border-[#D5D8D0] rounded-xl hover:bg-[#EFEFE8] transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F2F1E]"
                 >
-                  <span>Explore Market Intelligence</span>
-                </button>
+                  <Calculator className="w-4 h-4 text-[#15803D]" />
+                  <span>Comparison Calculator</span>
+                </a>
               </div>
+
+              {/* Instant Jumpstart into Searchable Price Dashboard */}
+              <form onSubmit={handleHeroSearchSubmit} className="mt-6 max-w-xl">
+                <label htmlFor="hero-price-search" className="sr-only">
+                  Search crop, mandi yard, district, or state in the Price Dashboard
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-[#7A827C] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      id="hero-price-search"
+                      type="search"
+                      value={heroSearch}
+                      onChange={(e) => setHeroSearch(e.target.value)}
+                      placeholder="Search Tomato, Onion, Wheat, Anantapur, Lasalgaon..."
+                      className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-[#D5D8D0] rounded-xl text-[#161A18] placeholder:text-[#7A827C] focus:outline-none focus:border-[#0F2F1E]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center px-4 py-2.5 text-xs sm:text-sm font-semibold text-[#0F2F1E] bg-[#EFEFE8] border border-[#D5D8D0] rounded-xl hover:bg-[#E2E4DD] transition-colors duration-150 whitespace-nowrap shrink-0"
+                  >
+                    Search Price Dashboard
+                  </button>
+                </div>
+              </form>
             </div>
 
-            {/* Bottom Credibility Anchor inside Left Column */}
-            <div className="mt-8 pt-5 border-t border-[#E2E4DD] flex flex-wrap items-center justify-between gap-4 text-xs text-[#4A524D]">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-[#161A18]">Net-Profit Engine</span>
-                <span aria-hidden="true">·</span>
-                <span>Adjusts for freight, APMC fees &amp; expected price variation</span>
+            {/* Quick Commodity Lookup + Core Thesis */}
+            <div className="mt-7 pt-5 border-t border-[#E2E4DD] space-y-2.5">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-[#4A524D]">
+                <span>Quick lookup:</span>
+                {['Tomato', 'Groundnut', 'Onion', 'Wheat', 'Soybean', 'Red Chilli'].map(
+                  (cropItem, idx) => (
+                    <React.Fragment key={cropItem}>
+                      {idx > 0 && <span aria-hidden="true">·</span>}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeroSearch(cropItem);
+                          onQuickSearch(cropItem);
+                          document
+                            .getElementById('price-dashboard')
+                            ?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="font-semibold text-[#161A18] hover:text-[#15803D] hover:underline underline-offset-2 whitespace-nowrap"
+                      >
+                        {cropItem}
+                      </button>
+                    </React.Fragment>
+                  )
+                )}
               </div>
-              <a
-                href="#ai-advisor"
-                className="font-semibold text-[#0F2F1E] hover:underline underline-offset-4 whitespace-nowrap"
-              >
-                Ask AI Advisor →
-              </a>
+              <p className="text-xs font-medium text-[#16422B]">
+                “We don&apos;t just show market prices. We tell farmers where they should sell and
+                why.”
+              </p>
             </div>
           </div>
 
@@ -274,9 +316,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onApplyPreset }) => {
 
               {/* Preview Footer Action */}
               <div className="mt-4 pt-3.5 border-t border-white/12 flex items-center justify-between gap-3 text-xs">
-                <span className="text-white/70">
-                  Net payout after freight, mandi fee &amp; price variation
-                </span>
+                <a
+                  href="#price-dashboard"
+                  className="text-white/75 hover:text-white underline underline-offset-4 whitespace-nowrap"
+                >
+                  Explore Searchable Price Dashboard
+                </a>
                 <button
                   type="button"
                   onClick={handleCheckBestOption}
@@ -297,7 +342,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onApplyPreset }) => {
               284 APMC Yards
             </p>
             <p className="mt-0.5 text-xs text-[#4A524D]">
-              Indexed across 9 agricultural states with verified modal rates
+              Searchable wholesale clearing rates indexed across 9 states
+            </p>
+          </div>
+          <div>
+            <p className="font-mono tabular-nums text-xl sm:text-2xl font-bold text-[#0F2F1E]">
+              2–3 Market Calc
+            </p>
+            <p className="mt-0.5 text-xs text-[#4A524D]">
+              Side-by-side comparison calculator for freight, cess &amp; shrinkage
             </p>
           </div>
           <div>
@@ -306,14 +359,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onApplyPreset }) => {
             </p>
             <p className="mt-0.5 text-xs text-[#4A524D]">
               Typical net profit uplift vs. unverified local sub-yard selling
-            </p>
-          </div>
-          <div>
-            <p className="font-mono tabular-nums text-xl sm:text-2xl font-bold text-[#0F2F1E]">
-              4 Cost Layers
-            </p>
-            <p className="mt-0.5 text-xs text-[#4A524D]">
-              Road freight, APMC fee, crate handling &amp; price variation modeled
             </p>
           </div>
           <div>

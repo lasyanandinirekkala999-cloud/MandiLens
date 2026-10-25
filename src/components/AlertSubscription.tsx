@@ -75,32 +75,32 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
     <>
       <section id="alerts" className="py-14 lg:py-20 bg-[#F7F7F2] border-b border-[#E2E4DD] no-print">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-6 sm:p-10 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          <div className="bg-white border border-[#E2E4DD] rounded-2xl p-6 sm:p-10 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             <div className="lg:col-span-6">
-              <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#15803D] mb-2">
                 <span>07:30 AM Morning Dispatch Brief</span>
-                <span aria-hidden="true">·</span>
-                <span>Zero Broker Spam</span>
+                <span aria-hidden="true" className="text-[#8A928C]">·</span>
+                <span className="text-[#4A524D] font-medium">Zero Broker Spam</span>
               </div>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#161A18]">
                 Receive verified mandi clearing sheets and freight spreads daily
               </h2>
-              <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+              <p className="mt-3 text-sm sm:text-base text-[#4A524D] leading-relaxed">
                 Subscribe your FPO packhouse or procurement desk to morning gate arrival alerts,
                 modal auction closes, and interstate freight rate updates tailored to your crop
                 corridor.
               </p>
 
-              <dl className="mt-6 pt-6 border-t border-slate-100 grid grid-cols-2 gap-4 text-xs sm:text-sm">
+              <dl className="mt-6 pt-6 border-t border-[#E2E4DD] grid grid-cols-2 gap-4 text-xs sm:text-sm">
                 <div>
-                  <dt className="font-semibold text-slate-900">Morning Gate Bulletin</dt>
-                  <dd className="text-slate-500 mt-0.5">
+                  <dt className="font-semibold text-[#161A18]">Morning Gate Bulletin</dt>
+                  <dd className="text-[#4A524D] mt-0.5">
                     Inward truck tallies before first open-outcry bid
                   </dd>
                 </div>
                 <div>
-                  <dt className="font-semibold text-slate-900">Closing Parity Sheet</dt>
-                  <dd className="text-slate-500 mt-0.5">
+                  <dt className="font-semibold text-[#161A18]">Closing Parity Sheet</dt>
+                  <dd className="text-[#4A524D] mt-0.5">
                     Grade-wise modal rates &amp; net farmgate spreads
                   </dd>
                 </div>
@@ -274,7 +274,7 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
                     <button
                       type="submit"
                       disabled={isSaving}
-                      className="px-6 py-3 text-sm font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 disabled:opacity-60 transition-colors duration-150 whitespace-nowrap"
+                      className="px-6 py-3 text-sm font-semibold text-white bg-[#0F2F1E] rounded-xl hover:bg-[#16422B] disabled:opacity-60 transition-colors duration-150 whitespace-nowrap"
                     >
                       {isSaving ? 'Saving Digest...' : 'Subscribe to Daily Mandi Sheet'}
                     </button>
@@ -283,7 +283,7 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
                       <button
                         type="button"
                         onClick={onOpenAuth}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-green-800 whitespace-nowrap"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#161A18] hover:text-[#15803D] whitespace-nowrap"
                       >
                         <LogIn className="w-3.5 h-3.5" />
                         <span>Sign in with Google to manage alerts</span>
@@ -315,10 +315,13 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
 
           <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-[#4A524D]">
             <a href="#dashboard" className="hover:text-[#0F2F1E] whitespace-nowrap">
-              Dashboard
+              Smart Decision
             </a>
-            <a href="#markets" className="hover:text-[#0F2F1E] whitespace-nowrap">
-              Markets
+            <a href="#price-dashboard" className="hover:text-[#0F2F1E] whitespace-nowrap">
+              Price Dashboard
+            </a>
+            <a href="#comparison-calculator" className="hover:text-[#0F2F1E] whitespace-nowrap">
+              Comparison Calculator
             </a>
             <a href="#price-intelligence" className="hover:text-[#0F2F1E] whitespace-nowrap">
               Price Intelligence
