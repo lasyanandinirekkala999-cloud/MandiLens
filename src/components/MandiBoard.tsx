@@ -290,6 +290,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
 
     const newRecord: MandiLotRecord = {
       id: `lot-custom-${Date.now()}`,
+      apmcCode: `${quoteState.slice(0, 2).toUpperCase()}-LOC-${String(Date.now()).slice(-4)}`,
       commodity: quoteCommodity.trim() || 'Commodity',
       variety: quoteVariety.trim() || 'Standard FAQ',
       category: quoteCategory,

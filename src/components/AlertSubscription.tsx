@@ -318,6 +318,9 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
             <a href="#comparison-calculator" className="hover:text-slate-900 whitespace-nowrap">
               Comparison Calculator
             </a>
+            <a href="#database-security" className="hover:text-slate-900 whitespace-nowrap">
+              Dispatch &amp; Security
+            </a>
             <a href="#supply-chain" className="hover:text-slate-900 whitespace-nowrap">
               Supply Chain
             </a>

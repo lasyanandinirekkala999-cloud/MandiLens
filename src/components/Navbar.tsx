@@ -48,6 +48,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
             Comparison Calculator
           </a>
           <a
+            href="#database-security"
+            className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
+          >
+            Dispatch &amp; Security
+          </a>
+          <a
             href="#supply-chain"
             className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
           >
@@ -120,6 +126,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
               className="py-1.5 hover:text-slate-900 whitespace-nowrap"
             >
               Comparison Calculator
+            </a>
+            <a
+              href="#database-security"
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-1.5 hover:text-slate-900 whitespace-nowrap"
+            >
+              Dispatch &amp; Security
             </a>
             <a
               href="#supply-chain"

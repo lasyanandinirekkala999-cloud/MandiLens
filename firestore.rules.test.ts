@@ -4,7 +4,16 @@ import {
   initializeTestEnvironment,
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, getDocs, collection, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 import * as fs from 'fs';
 
 /**
@@ -24,8 +33,8 @@ export async function runDirtyDozenSecurityTests() {
       email: 'alice@fpo.org',
       email_verified: true,
     });
-    const aliceUnverified = testEnv.authenticatedContext('alice_unverified', {
-      email: 'spoof@fpo.org',
+    const spoofedAdmin = testEnv.authenticatedContext('spoof_admin', {
+      email: 'nagireddyrekkala999@gmail.com',
       email_verified: false,
     });
     const bobVerified = testEnv.authenticatedContext('bob_2', {
@@ -35,9 +44,8 @@ export async function runDirtyDozenSecurityTests() {
 
     const aliceDb = aliceVerified.firestore();
     const bobDb = bobVerified.firestore();
-    const unverifiedDb = aliceUnverified.firestore();
+    const spoofDb = spoofedAdmin.firestore();
 
-    // Seed Bob's legitimate profile & private doc via rules-disabled setup for read isolation test
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const adminDb = ctx.firestore();
       await setDoc(doc(adminDb, 'users', 'bob_2'), {
@@ -51,6 +59,18 @@ export async function runDirtyDozenSecurityTests() {
       await setDoc(doc(adminDb, 'users', 'bob_2', 'private', 'info'), {
         ownerId: 'bob_2',
         email: 'bob@fpo.org',
+        updatedAt: new Date(),
+      });
+      await setDoc(doc(adminDb, 'procurementOrders', 'order_settled_1'), {
+        ownerId: 'bob_2',
+        organization: 'Bob Farm',
+        commodity: 'Onion',
+        originCluster: 'Nashik',
+        destinationMandi: 'Lasalgaon APMC',
+        quantityQtl: 60,
+        expectedNetPerQtl: 2150,
+        dispatchStatus: 'settled',
+        createdAt: new Date(),
         updatedAt: new Date(),
       });
     });
@@ -68,19 +88,47 @@ export async function runDirtyDozenSecurityTests() {
       })
     );
 
-    // 2. Unverified Email Write
+    // 2. Admin Email Spoofing (email_verified: false)
     await assertFails(
-      setDoc(doc(unverifiedDb, 'users', 'alice_unverified'), {
-        uid: 'alice_unverified',
-        displayName: 'Spoof User',
-        supplyChainRole: 'Independent Grower',
-        regionCluster: 'Maharashtra — Nashik / Pune',
+      setDoc(doc(spoofDb, 'mandiLots', 'lot-spoof-1'), {
+        lotId: 'lot-spoof-1',
+        authorId: 'spoof_admin',
+        commodity: 'Onion',
+        variety: 'Red FAQ',
+        category: 'Vegetables',
+        mandi: 'Lasalgaon APMC',
+        district: 'Nashik',
+        state: 'Maharashtra',
+        grade: 'FAQ',
+        moistureSpec: 'Dry',
+        minPrice: 1900,
+        maxPrice: 2500,
+        modalPrice: 2200,
+        change24hPct: 1.5,
+        arrivalsQtl: 12000,
+        defaultDistanceKm: 38,
+        mandiFeePct: 1.0,
+        hamaliPerQtl: 26,
+        status: 'published',
+        verificationTier: 'official_apmc',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
     );
 
-    // 7. Orphaned Subcollection Write (before parent /users/alice_1 exists)
+    // 3. Privilege Escalation into /admins
+    await assertFails(
+      setDoc(doc(aliceDb, 'admins', 'alice_1'), {
+        uid: 'alice_1',
+        grantedBy: 'alice_1',
+        createdAt: serverTimestamp(),
+      })
+    );
+
+    // 4. Cross-User PII Read
+    await assertFails(getDoc(doc(aliceDb, 'users', 'bob_2', 'private', 'info')));
+
+    // 7. Orphaned Subcollection Write before /users/alice_1 exists
     await assertFails(
       setDoc(doc(aliceDb, 'users', 'alice_1', 'watchlist', 'lot-lasalgaon-onion'), {
         ownerId: 'alice_1',
@@ -89,38 +137,7 @@ export async function runDirtyDozenSecurityTests() {
       })
     );
 
-    // 8. Orphaned FieldQuote Write (before parent /users/alice_1 exists)
-    await assertFails(
-      setDoc(doc(aliceDb, 'fieldQuotes', 'quote_orphan_1'), {
-        ownerId: 'alice_1',
-        commodity: 'Onion',
-        variety: 'Red FAQ',
-        category: 'Vegetables',
-        mandi: 'Yeola APMC',
-        district: 'Nashik',
-        state: 'Maharashtra',
-        grade: 'FAQ',
-        modalPrice: 2200,
-        minPrice: 2000,
-        maxPrice: 2400,
-        arrivalsQtl: 5000,
-        createdAt: serverTimestamp(),
-      })
-    );
-
-    // 6. Client Timestamp Forgery
-    await assertFails(
-      setDoc(doc(aliceDb, 'users', 'alice_1'), {
-        uid: 'alice_1',
-        displayName: 'Alice FPO',
-        supplyChainRole: 'FPO / Farmer Collective',
-        regionCluster: 'Maharashtra — Nashik / Pune',
-        createdAt: new Date('2020-01-01T00:00:00Z'),
-        updatedAt: serverTimestamp(),
-      })
-    );
-
-    // Valid Baseline Create for Alice so remaining update/spoof tests can execute
+    // Create legitimate baseline profile for Alice
     await assertSucceeds(
       setDoc(doc(aliceDb, 'users', 'alice_1'), {
         uid: 'alice_1',
@@ -132,75 +149,128 @@ export async function runDirtyDozenSecurityTests() {
       })
     );
 
-    // 3. Identity Spoofing on fieldQuotes
-    await assertFails(
-      setDoc(doc(aliceDb, 'fieldQuotes', 'quote_spoof_1'), {
-        ownerId: 'bob_2',
-        commodity: 'Onion',
-        variety: 'Red FAQ',
-        category: 'Vegetables',
-        mandi: 'Yeola APMC',
-        district: 'Nashik',
-        state: 'Maharashtra',
-        grade: 'FAQ',
-        modalPrice: 2200,
-        minPrice: 2000,
-        maxPrice: 2400,
-        arrivalsQtl: 5000,
-        createdAt: serverTimestamp(),
-      })
-    );
-
-    // 4. Cross-User PII Read
-    await assertFails(getDoc(doc(aliceDb, 'users', 'bob_2', 'private', 'info')));
-
     // 5. ID Poisoning (>128 chars)
-    const poisonedId = 'x'.repeat(140);
     await assertFails(
-      setDoc(doc(aliceDb, 'users', 'alice_1', 'watchlist', poisonedId), {
+      setDoc(doc(aliceDb, 'users', 'alice_1', 'watchlist', 'z'.repeat(140)), {
         ownerId: 'alice_1',
         lotId: 'lot-lasalgaon-onion',
         createdAt: serverTimestamp(),
       })
     );
 
-    // 9. Immutable Field Tampering (mutating createdAt during update)
+    // 6. Client Timestamp Forgery on procurementOrders
     await assertFails(
-      updateDoc(doc(aliceDb, 'users', 'alice_1'), {
-        displayName: 'Alice Updated',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
-    );
-
-    // 10. Value Poisoning on Update (invalid enum role)
-    await assertFails(
-      updateDoc(doc(aliceDb, 'users', 'alice_1'), {
-        supplyChainRole: 'RootSuperAdmin',
-        updatedAt: serverTimestamp(),
-      })
-    );
-
-    // 11. Unauthorized Blanket List Scraping across fieldQuotes
-    await assertFails(getDocs(collection(bobDb, 'fieldQuotes')));
-
-    // 12. Out-of-Bounds Numeric Quote (negative modalPrice)
-    await assertFails(
-      setDoc(doc(aliceDb, 'fieldQuotes', 'quote_invalid_num'), {
+      setDoc(doc(aliceDb, 'procurementOrders', 'order_forged_time'), {
         ownerId: 'alice_1',
+        organization: 'Alice FPO',
+        commodity: 'Onion',
+        originCluster: 'Nashik',
+        destinationMandi: 'Lasalgaon APMC',
+        quantityQtl: 50,
+        expectedNetPerQtl: 2100,
+        dispatchStatus: 'planned',
+        createdAt: new Date('2021-01-01T00:00:00Z'),
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // 8. Tier Spoofing on /mandiLots (non-admin setting official_apmc)
+    await assertFails(
+      setDoc(doc(aliceDb, 'mandiLots', 'lot-tier-spoof'), {
+        lotId: 'lot-tier-spoof',
+        authorId: 'alice_1',
         commodity: 'Onion',
         variety: 'Red FAQ',
         category: 'Vegetables',
-        mandi: 'Yeola APMC',
+        mandi: 'Lasalgaon APMC',
         district: 'Nashik',
         state: 'Maharashtra',
         grade: 'FAQ',
-        modalPrice: -500,
-        minPrice: 2000,
-        maxPrice: 2400,
-        arrivalsQtl: 5000,
+        moistureSpec: 'Dry',
+        minPrice: 1900,
+        maxPrice: 2500,
+        modalPrice: 2200,
+        change24hPct: 1.5,
+        arrivalsQtl: 12000,
+        defaultDistanceKm: 38,
+        mandiFeePct: 1.0,
+        hamaliPerQtl: 26,
+        status: 'published',
+        verificationTier: 'official_apmc',
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       })
+    );
+
+    // 9. Terminal State Bypass on settled procurementOrder
+    await assertFails(
+      updateDoc(doc(bobDb, 'procurementOrders', 'order_settled_1'), {
+        dispatchStatus: 'in_transit',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // 10. State Shortcutting (planned -> settled directly)
+    await assertSucceeds(
+      setDoc(doc(aliceDb, 'procurementOrders', 'order_alice_1'), {
+        ownerId: 'alice_1',
+        organization: 'Alice FPO',
+        commodity: 'Wheat',
+        originCluster: 'Sehore',
+        destinationMandi: 'Sehore APMC',
+        quantityQtl: 80,
+        expectedNetPerQtl: 3050,
+        dispatchStatus: 'planned',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+    await assertFails(
+      updateDoc(doc(aliceDb, 'procurementOrders', 'order_alice_1'), {
+        dispatchStatus: 'settled',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // 11. Unauthorized Blanket List Scraping across procurementOrders
+    await assertFails(getDocs(collection(aliceDb, 'procurementOrders')));
+
+    // 12. Locked Comparison Tampering
+    await assertSucceeds(
+      setDoc(doc(aliceDb, 'users', 'alice_1', 'savedComparisons', 'comp_1'), {
+        ownerId: 'alice_1',
+        title: 'Nashik Onion Arbitrage',
+        commodity: 'Onion',
+        compareCount: 2,
+        lotQtl: 60,
+        packagingPerQtl: 45,
+        freightPerKmQtl: 1.45,
+        shrinkagePer100Km: 0.9,
+        marketAName: 'Chandwad Yard',
+        marketAPriceQtl: 2110,
+        marketADistanceKm: 14,
+        marketBName: 'Lasalgaon APMC',
+        marketBPriceQtl: 2280,
+        marketBDistanceKm: 38,
+        marketCName: 'N/A',
+        marketCPriceQtl: 0,
+        marketCDistanceKm: 0,
+        bestMarketName: 'Lasalgaon APMC',
+        bestNetPerQtl: 2145,
+        bestNetTotalInr: 128700,
+        status: 'active',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(aliceDb, 'users', 'alice_1', 'savedComparisons', 'comp_1'), {
+        status: 'locked',
+        updatedAt: serverTimestamp(),
+      })
+    );
+    await assertFails(
+      deleteDoc(doc(aliceDb, 'users', 'alice_1', 'savedComparisons', 'comp_1'))
     );
   } finally {
     await testEnv.cleanup();

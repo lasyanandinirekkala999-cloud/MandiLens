@@ -1,16 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { RotateCcw, Truck } from 'lucide-react';
+import {
+  BookmarkCheck,
+  CheckCircle2,
+  Lock,
+  RotateCcw,
+  Trash2,
+  Truck,
+} from 'lucide-react';
 import {
   ARBITRAGE_CORRIDORS,
   CandidateMandiOption,
   MandiLotRecord,
 } from '../data/mandiData';
+import { CloudSavedComparison, useAuth } from '../context/AuthContext';
 
 interface ArbitrageCalculatorProps {
   allRecords: MandiLotRecord[];
   comparedLotIds: string[];
   selectedCorridorId: string;
   onCorridorChange: (corridorId: string) => void;
+  onOpenAuth: () => void;
 }
 
 export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
@@ -18,7 +27,18 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
   comparedLotIds,
   selectedCorridorId,
   onCorridorChange,
+  onOpenAuth,
 }) => {
+  const {
+    user,
+    profile,
+    savedComparisons,
+    saveComparisonScenario,
+    lockComparisonScenario,
+    deleteComparisonScenario,
+    createProcurementOrder,
+  } = useAuth();
+
   const activeCorridor = useMemo(() => {
     return (
       ARBITRAGE_CORRIDORS.find((c) => c.id === selectedCorridorId) ||
@@ -38,6 +58,11 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
     activeCorridor.defaultShrinkagePctPer100Km
   );
   const [slots, setSlots] = useState<CandidateMandiOption[]>(activeCorridor.mandis);
+
+  const [isSavingScenario, setIsSavingScenario] = useState(false);
+  const [isCreatingDispatch, setIsCreatingDispatch] = useState(false);
+  const [statusNote, setStatusNote] = useState<string>('');
+  const [busyScenarioId, setBusyScenarioId] = useState<string | null>(null);
 
   // Sync when corridor preset changes
   useEffect(() => {
@@ -84,6 +109,7 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
     setFreightPerKmQtl(activeCorridor.defaultFreightPerKmQtl);
     setShrinkagePer100Km(activeCorridor.defaultShrinkagePctPer100Km);
     setSlots(activeCorridor.mandis);
+    setStatusNote('');
   };
 
   const handleSelectDashboardMarketForSlot = (slotIdx: number, recordId: string) => {
@@ -122,6 +148,47 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
         return { ...slot, [field]: Math.max(0, Number(value) || 0) };
       })
     );
+  };
+
+  const handleLoadSavedScenario = (item: CloudSavedComparison) => {
+    setCompareCount(item.compareCount);
+    setLotQtl(item.lotQtl);
+    setPackagingPerQtl(item.packagingPerQtl);
+    setFreightPerKmQtl(item.freightPerKmQtl);
+    setShrinkagePer100Km(item.shrinkagePer100Km);
+    setSlots([
+      {
+        id: `loaded-a-${item.id}`,
+        name: item.marketAName,
+        commodityLabel: item.commodity,
+        tierLabel: 'Market A · Saved Scenario',
+        distanceKm: item.marketADistanceKm,
+        modalPriceQtl: item.marketAPriceQtl,
+        mandiFeePct: 1.0,
+        hamaliPerQtl: 25,
+      },
+      {
+        id: `loaded-b-${item.id}`,
+        name: item.marketBName,
+        commodityLabel: item.commodity,
+        tierLabel: 'Market B · Saved Scenario',
+        distanceKm: item.marketBDistanceKm,
+        modalPriceQtl: item.marketBPriceQtl,
+        mandiFeePct: 1.0,
+        hamaliPerQtl: 26,
+      },
+      {
+        id: `loaded-c-${item.id}`,
+        name: item.marketCName,
+        commodityLabel: item.commodity,
+        tierLabel: 'Market C · Saved Scenario',
+        distanceKm: item.marketCDistanceKm,
+        modalPriceQtl: item.marketCPriceQtl,
+        mandiFeePct: 1.5,
+        hamaliPerQtl: 35,
+      },
+    ]);
+    setStatusNote(`Loaded saved scenario: ${item.title}`);
   };
 
   const vehicleGuidance = useMemo(() => {
@@ -185,6 +252,97 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
       ? Math.round(bestOption.netTotalInr - runnerUpOption.netTotalInr)
       : 0;
 
+  const handleSaveScenario = async () => {
+    if (!user) {
+      onOpenAuth();
+      return;
+    }
+    if (!bestOption || slots.length < 2) return;
+
+    const slotA = slots[0];
+    const slotB = slots[1];
+    const slotC = slots[2] || slots[1];
+    const title = `${activeCorridor.commodity.split('(')[0].trim()} · ${slotA.name} vs ${slotB.name} (${lotQtl} qtl)`;
+
+    setIsSavingScenario(true);
+    setStatusNote('');
+    try {
+      await saveComparisonScenario({
+        title,
+        commodity: activeCorridor.commodity,
+        compareCount,
+        lotQtl,
+        packagingPerQtl,
+        freightPerKmQtl,
+        shrinkagePer100Km,
+        marketAName: slotA.name,
+        marketAPriceQtl: slotA.modalPriceQtl,
+        marketADistanceKm: slotA.distanceKm,
+        marketBName: slotB.name,
+        marketBPriceQtl: slotB.modalPriceQtl,
+        marketBDistanceKm: slotB.distanceKm,
+        marketCName: slotC.name,
+        marketCPriceQtl: slotC.modalPriceQtl,
+        marketCDistanceKm: slotC.distanceKm,
+        bestMarketName: bestOption.name,
+        bestNetPerQtl: bestOption.netPerQtl,
+        bestNetTotalInr: bestOption.netTotalInr,
+      });
+      setStatusNote('Comparison scenario saved to your Firestore account.');
+    } catch (err) {
+      setStatusNote(err instanceof Error ? err.message : 'Unable to save comparison.');
+    } finally {
+      setIsSavingScenario(false);
+    }
+  };
+
+  const handleLogDispatchFromBest = async () => {
+    if (!user) {
+      onOpenAuth();
+      return;
+    }
+    if (!bestOption) return;
+
+    setIsCreatingDispatch(true);
+    setStatusNote('');
+    try {
+      await createProcurementOrder({
+        organization: profile?.displayName || user.displayName || 'MandiLens Member',
+        commodity: activeCorridor.commodity,
+        originCluster: activeCorridor.originCluster,
+        destinationMandi: bestOption.name,
+        quantityQtl: lotQtl,
+        expectedNetPerQtl: Math.max(50, Math.round(bestOption.netPerQtl)),
+      });
+      setStatusNote(`Planned dispatch to ${bestOption.name} added to Supply Chain Ledger.`);
+      document
+        .getElementById('database-security')
+        ?.scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      setStatusNote(err instanceof Error ? err.message : 'Unable to log dispatch order.');
+    } finally {
+      setIsCreatingDispatch(false);
+    }
+  };
+
+  const handleLockScenario = async (id: string) => {
+    setBusyScenarioId(id);
+    try {
+      await lockComparisonScenario(id);
+    } finally {
+      setBusyScenarioId(null);
+    }
+  };
+
+  const handleDeleteScenario = async (id: string) => {
+    setBusyScenarioId(id);
+    try {
+      await deleteComparisonScenario(id);
+    } finally {
+      setBusyScenarioId(null);
+    }
+  };
+
   return (
     <section
       id="comparison-calculator"
@@ -204,12 +362,12 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
             </h2>
             <p className="mt-1.5 text-sm sm:text-base text-slate-600 max-w-2xl">
               Compare any 2 or 3 wholesale markets side-by-side. Load live mandis from the
-              dashboard above or enter custom rates, distances, and market commissions to see
-              which yard delivers the highest net farmgate payout.
+              dashboard above, save scenarios to your cloud database, or dispatch directly to the
+              highest-paying yard.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 self-start lg:self-auto shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-auto shrink-0">
             <div
               role="group"
               aria-label="Number of markets to compare"
@@ -241,14 +399,30 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
 
             <button
               type="button"
+              disabled={isSavingScenario}
+              onClick={handleSaveScenario}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0"
+            >
+              <BookmarkCheck className="w-3.5 h-3.5" />
+              <span>{isSavingScenario ? 'Saving...' : 'Save to Database'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleReset}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors whitespace-nowrap shrink-0"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Defaults</span>
+              <span>Reset</span>
             </button>
           </div>
         </div>
+
+        {statusNote && (
+          <p className="mb-4 text-xs font-medium text-green-800" role="status">
+            {statusNote}
+          </p>
+        )}
 
         {/* Shared Lot & Supply Chain Inputs */}
         <div className="border border-slate-200 rounded-xl bg-slate-50 p-5 sm:p-6 mb-8">
@@ -583,7 +757,7 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
 
           {/* Summary Dispatch Recommendation Strip */}
           {bestOption && (
-            <div className="border-t border-slate-200 bg-slate-900 text-white px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="border-t border-slate-200 bg-slate-900 text-white px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <p className="text-xs sm:text-sm text-slate-200 tracking-[0.01em]">
                 Comparison Verdict:{' '}
                 <strong className="font-semibold text-white">{bestOption.name}</strong> delivers
@@ -600,12 +774,126 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
                   ? ` — earning +₹${advantageOverRunnerUp.toLocaleString('en-IN')} more than ${runnerUpOption.name} on this ${lotQtl} qtl lot.`
                   : '.'}
               </p>
-              <a
-                href="#alerts"
-                className="text-xs font-semibold text-green-300 hover:text-white underline underline-offset-4 whitespace-nowrap shrink-0"
-              >
-                Subscribe to Route Alerts
-              </a>
+
+              <div className="flex flex-wrap items-center gap-4 shrink-0">
+                <button
+                  type="button"
+                  disabled={isCreatingDispatch}
+                  onClick={handleLogDispatchFromBest}
+                  className="px-3.5 py-2 text-xs font-semibold bg-green-700 hover:bg-green-600 text-white rounded-lg transition-colors whitespace-nowrap shrink-0"
+                >
+                  {isCreatingDispatch
+                    ? 'Logging Dispatch...'
+                    : `Dispatch Lot to ${bestOption.name}`}
+                </button>
+                <a
+                  href="#alerts"
+                  className="text-xs font-semibold text-green-300 hover:text-white underline underline-offset-4 whitespace-nowrap shrink-0"
+                >
+                  Subscribe to Route Alerts
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Saved Firestore Comparison Scenarios Sub-Table */}
+          {user && savedComparisons.length > 0 && (
+            <div className="border-t border-slate-200 bg-slate-50/70">
+              <div className="px-6 py-3.5 border-b border-slate-200 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-display text-sm font-semibold text-slate-900">
+                    Saved Comparison Scenarios ({savedComparisons.length})
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Stored in <span className="font-mono">/users/&#123;uid&#125;/savedComparisons</span>{' '}
+                    with terminal decision locking
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600">
+                      <th className="py-2.5 pl-6 pr-3 whitespace-nowrap">Scenario</th>
+                      <th className="py-2.5 px-3 text-right whitespace-nowrap">Lot Volume</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">Optimal Market</th>
+                      <th className="py-2.5 px-3 text-right whitespace-nowrap">Best Net Payout</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">Record State</th>
+                      <th className="py-2.5 pl-3 pr-6 text-right whitespace-nowrap">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-xs sm:text-sm bg-white">
+                    {savedComparisons.map((item) => {
+                      const isBusy = busyScenarioId === item.id;
+                      const isLocked = item.status === 'locked';
+
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3 pl-6 pr-3 font-medium text-slate-900">
+                            {item.title}
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-700 whitespace-nowrap">
+                            {item.lotQtl} qtl
+                          </td>
+                          <td className="py-3 px-3 text-slate-800 whitespace-nowrap">
+                            {item.bestMarketName}
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono tabular-nums font-semibold text-green-800 whitespace-nowrap">
+                            ₹{item.bestNetPerQtl.toLocaleString('en-IN')}/qtl · ₹
+                            {item.bestNetTotalInr.toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            {isLocked ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-800">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Decision Locked</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-slate-500">Active Draft</span>
+                            )}
+                          </td>
+                          <td className="py-3 pl-3 pr-6 text-right whitespace-nowrap">
+                            <div className="inline-flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleLoadSavedScenario(item)}
+                                className="px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 rounded hover:bg-slate-200 transition-colors whitespace-nowrap"
+                              >
+                                Load
+                              </button>
+                              {!isLocked ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleLockScenario(item.id)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded hover:bg-slate-100 disabled:opacity-50 transition-colors whitespace-nowrap"
+                                  >
+                                    <Lock className="w-3 h-3" />
+                                    <span>Lock</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleDeleteScenario(item.id)}
+                                    aria-label={`Delete saved scenario ${item.title}`}
+                                    className="p-1 text-slate-400 hover:text-red-700 rounded transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-xs text-slate-400">Immutable</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

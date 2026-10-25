@@ -22,6 +22,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Bootstrapped Admin (verified email required to prevent email spoofing) + Trusted Registry
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'nagireddyrekkala999@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
     function incoming() {
       return request.resource.data;
     }
@@ -46,6 +54,17 @@ service cloud.firestore {
         );
     }
 
+    function isValidCropCategory(cat) {
+      return cat is string &&
+        cat.size() >= 2 &&
+        cat.size() <= 40 &&
+        (
+          cat == 'Cereals & Pulses' ||
+          cat == 'Vegetables' ||
+          cat == 'Oilseeds & Spices'
+        );
+    }
+
     function hasActiveParentUser(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid;
     }
@@ -53,6 +72,15 @@ service cloud.firestore {
     // =========================================================================
     // Validation Blueprints (Synchronized verbatim with firebase-blueprint.json)
     // =========================================================================
+    function isValidAdminDoc(data) {
+      return data.keys().hasAll(['uid', 'grantedBy', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'grantedBy', 'createdAt']) &&
+        isValidId(data.uid) &&
+        data.grantedBy == request.auth.uid &&
+        isValidId(data.grantedBy) &&
+        data.createdAt is timestamp;
+    }
+
     function isValidUserProfile(data) {
       return data.keys().hasAll([
           'uid',
@@ -70,7 +98,6 @@ service cloud.firestore {
           'createdAt',
           'updatedAt'
         ]) &&
-        data.uid == request.auth.uid &&
         isValidId(data.uid) &&
         data.displayName is string &&
         data.displayName.size() >= 1 &&
@@ -86,12 +113,10 @@ service cloud.firestore {
     function isValidUserPrivateInfo(data) {
       return data.keys().hasAll(['ownerId', 'email', 'updatedAt']) &&
         data.keys().hasOnly(['ownerId', 'email', 'updatedAt']) &&
-        data.ownerId == request.auth.uid &&
         isValidId(data.ownerId) &&
         data.email is string &&
         data.email.size() >= 3 &&
         data.email.size() <= 160 &&
-        data.email == request.auth.token.email &&
         data.updatedAt is timestamp;
     }
 
@@ -102,6 +127,117 @@ service cloud.firestore {
         isValidId(data.ownerId) &&
         isValidId(data.lotId) &&
         data.createdAt is timestamp;
+    }
+
+    function isValidSavedComparison(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'title',
+          'commodity',
+          'compareCount',
+          'lotQtl',
+          'packagingPerQtl',
+          'freightPerKmQtl',
+          'shrinkagePer100Km',
+          'marketAName',
+          'marketAPriceQtl',
+          'marketADistanceKm',
+          'marketBName',
+          'marketBPriceQtl',
+          'marketBDistanceKm',
+          'marketCName',
+          'marketCPriceQtl',
+          'marketCDistanceKm',
+          'bestMarketName',
+          'bestNetPerQtl',
+          'bestNetTotalInr',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'title',
+          'commodity',
+          'compareCount',
+          'lotQtl',
+          'packagingPerQtl',
+          'freightPerKmQtl',
+          'shrinkagePer100Km',
+          'marketAName',
+          'marketAPriceQtl',
+          'marketADistanceKm',
+          'marketBName',
+          'marketBPriceQtl',
+          'marketBDistanceKm',
+          'marketCName',
+          'marketCPriceQtl',
+          'marketCDistanceKm',
+          'bestMarketName',
+          'bestNetPerQtl',
+          'bestNetTotalInr',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.ownerId) &&
+        data.title is string &&
+        data.title.size() >= 2 &&
+        data.title.size() <= 100 &&
+        data.commodity is string &&
+        data.commodity.size() >= 2 &&
+        data.commodity.size() <= 80 &&
+        data.compareCount is number &&
+        (data.compareCount == 2 || data.compareCount == 3) &&
+        data.lotQtl is number &&
+        data.lotQtl >= 1 &&
+        data.lotQtl <= 10000 &&
+        data.packagingPerQtl is number &&
+        data.packagingPerQtl >= 0 &&
+        data.packagingPerQtl <= 2000 &&
+        data.freightPerKmQtl is number &&
+        data.freightPerKmQtl >= 0 &&
+        data.freightPerKmQtl <= 50 &&
+        data.shrinkagePer100Km is number &&
+        data.shrinkagePer100Km >= 0 &&
+        data.shrinkagePer100Km <= 25 &&
+        data.marketAName is string &&
+        data.marketAName.size() >= 2 &&
+        data.marketAName.size() <= 80 &&
+        data.marketAPriceQtl is number &&
+        data.marketAPriceQtl >= 0 &&
+        data.marketAPriceQtl <= 100000 &&
+        data.marketADistanceKm is number &&
+        data.marketADistanceKm >= 0 &&
+        data.marketADistanceKm <= 5000 &&
+        data.marketBName is string &&
+        data.marketBName.size() >= 2 &&
+        data.marketBName.size() <= 80 &&
+        data.marketBPriceQtl is number &&
+        data.marketBPriceQtl >= 0 &&
+        data.marketBPriceQtl <= 100000 &&
+        data.marketBDistanceKm is number &&
+        data.marketBDistanceKm >= 0 &&
+        data.marketBDistanceKm <= 5000 &&
+        data.marketCName is string &&
+        data.marketCName.size() >= 1 &&
+        data.marketCName.size() <= 80 &&
+        data.marketCPriceQtl is number &&
+        data.marketCPriceQtl >= 0 &&
+        data.marketCPriceQtl <= 100000 &&
+        data.marketCDistanceKm is number &&
+        data.marketCDistanceKm >= 0 &&
+        data.marketCDistanceKm <= 5000 &&
+        data.bestMarketName is string &&
+        data.bestMarketName.size() >= 2 &&
+        data.bestMarketName.size() <= 80 &&
+        data.bestNetPerQtl is number &&
+        data.bestNetTotalInr is number &&
+        data.status is string &&
+        data.status.size() <= 20 &&
+        (data.status == 'active' || data.status == 'locked') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
     }
 
     function isValidAlertSubscription(data) {
@@ -139,6 +275,168 @@ service cloud.firestore {
         data.contact.size() >= 5 &&
         data.contact.size() <= 160 &&
         data.createdAt is timestamp;
+    }
+
+    function isValidMandiLot(data) {
+      return data.keys().hasAll([
+          'lotId',
+          'authorId',
+          'commodity',
+          'variety',
+          'category',
+          'mandi',
+          'district',
+          'state',
+          'grade',
+          'moistureSpec',
+          'minPrice',
+          'maxPrice',
+          'modalPrice',
+          'change24hPct',
+          'arrivalsQtl',
+          'defaultDistanceKm',
+          'mandiFeePct',
+          'hamaliPerQtl',
+          'status',
+          'verificationTier',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'lotId',
+          'authorId',
+          'commodity',
+          'variety',
+          'category',
+          'mandi',
+          'district',
+          'state',
+          'grade',
+          'moistureSpec',
+          'minPrice',
+          'maxPrice',
+          'modalPrice',
+          'change24hPct',
+          'arrivalsQtl',
+          'defaultDistanceKm',
+          'mandiFeePct',
+          'hamaliPerQtl',
+          'status',
+          'verificationTier',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.lotId) &&
+        isValidId(data.authorId) &&
+        data.commodity is string &&
+        data.commodity.size() >= 2 &&
+        data.commodity.size() <= 60 &&
+        data.variety is string &&
+        data.variety.size() >= 2 &&
+        data.variety.size() <= 80 &&
+        isValidCropCategory(data.category) &&
+        data.mandi is string &&
+        data.mandi.size() >= 2 &&
+        data.mandi.size() <= 80 &&
+        data.district is string &&
+        data.district.size() >= 2 &&
+        data.district.size() <= 60 &&
+        data.state is string &&
+        data.state.size() >= 2 &&
+        data.state.size() <= 50 &&
+        data.grade is string &&
+        data.grade.size() >= 2 &&
+        data.grade.size() <= 50 &&
+        data.moistureSpec is string &&
+        data.moistureSpec.size() >= 2 &&
+        data.moistureSpec.size() <= 50 &&
+        data.modalPrice is number &&
+        data.modalPrice >= 100 &&
+        data.modalPrice <= 100000 &&
+        data.minPrice is number &&
+        data.minPrice >= 50 &&
+        data.minPrice <= data.modalPrice &&
+        data.maxPrice is number &&
+        data.maxPrice >= data.modalPrice &&
+        data.maxPrice <= 120000 &&
+        data.change24hPct is number &&
+        data.change24hPct >= -100 &&
+        data.change24hPct <= 100 &&
+        data.arrivalsQtl is number &&
+        data.arrivalsQtl >= 1 &&
+        data.arrivalsQtl <= 1000000 &&
+        data.defaultDistanceKm is number &&
+        data.defaultDistanceKm >= 0 &&
+        data.defaultDistanceKm <= 5000 &&
+        data.mandiFeePct is number &&
+        data.mandiFeePct >= 0 &&
+        data.mandiFeePct <= 15 &&
+        data.hamaliPerQtl is number &&
+        data.hamaliPerQtl >= 0 &&
+        data.hamaliPerQtl <= 500 &&
+        data.status is string &&
+        data.status.size() <= 20 &&
+        (data.status == 'published' || data.status == 'archived') &&
+        data.verificationTier is string &&
+        data.verificationTier.size() <= 24 &&
+        (data.verificationTier == 'official_apmc' || data.verificationTier == 'fpo_verified') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidProcurementOrder(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'organization',
+          'commodity',
+          'originCluster',
+          'destinationMandi',
+          'quantityQtl',
+          'expectedNetPerQtl',
+          'dispatchStatus',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'organization',
+          'commodity',
+          'originCluster',
+          'destinationMandi',
+          'quantityQtl',
+          'expectedNetPerQtl',
+          'dispatchStatus',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.ownerId) &&
+        data.organization is string &&
+        data.organization.size() >= 2 &&
+        data.organization.size() <= 100 &&
+        data.commodity is string &&
+        data.commodity.size() >= 2 &&
+        data.commodity.size() <= 60 &&
+        data.originCluster is string &&
+        data.originCluster.size() >= 2 &&
+        data.originCluster.size() <= 80 &&
+        data.destinationMandi is string &&
+        data.destinationMandi.size() >= 2 &&
+        data.destinationMandi.size() <= 80 &&
+        data.quantityQtl is number &&
+        data.quantityQtl >= 1 &&
+        data.quantityQtl <= 50000 &&
+        data.expectedNetPerQtl is number &&
+        data.expectedNetPerQtl >= 50 &&
+        data.expectedNetPerQtl <= 100000 &&
+        data.dispatchStatus is string &&
+        data.dispatchStatus.size() <= 20 &&
+        (
+          data.dispatchStatus == 'planned' ||
+          data.dispatchStatus == 'in_transit' ||
+          data.dispatchStatus == 'settled'
+        ) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
     }
 
     function isValidFieldQuote(data) {
@@ -180,13 +478,7 @@ service cloud.firestore {
         data.variety is string &&
         data.variety.size() >= 2 &&
         data.variety.size() <= 80 &&
-        data.category is string &&
-        data.category.size() <= 40 &&
-        (
-          data.category == 'Cereals & Pulses' ||
-          data.category == 'Vegetables' ||
-          data.category == 'Oilseeds & Spices'
-        ) &&
+        isValidCropCategory(data.category) &&
         data.mandi is string &&
         data.mandi.size() >= 2 &&
         data.mandi.size() <= 80 &&
@@ -215,34 +507,63 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // 0. /admins/{adminUid} (Trusted Market Admin Registry)
+    // =========================================================================
+    match /admins/{adminUid} {
+      allow get: if isVerifiedUser() &&
+        isValidId(adminUid) &&
+        (request.auth.uid == adminUid || isAdmin());
+
+      allow list: if false;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(adminUid) &&
+        isValidAdminDoc(incoming()) &&
+        incoming().uid == adminUid &&
+        incoming().createdAt == request.time &&
+        isAdmin();
+
+      allow update: if false;
+      allow delete: if isVerifiedUser() && isValidId(adminUid) && isAdmin();
+    }
+
+    // =========================================================================
     // 1. /users/{userId} (Non-PII Profile)
     // =========================================================================
     match /users/{userId} {
-      allow get: if isOwner(userId) && isValidId(userId);
+      allow get: if isSignedIn() &&
+        isValidId(userId) &&
+        (isOwner(userId) || isAdmin());
+
       allow list: if false;
 
       allow create: if isVerifiedUser() &&
         isOwner(userId) &&
         isValidId(userId) &&
         isValidUserProfile(incoming()) &&
+        incoming().uid == request.auth.uid &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
 
       allow update: if isVerifiedUser() &&
         isValidUserProfile(incoming()) &&
-        isOwner(userId) &&
         isValidId(userId) &&
         incoming().uid == existing().uid &&
         incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
         (
-          // Action: Update Profile Preferences
-          incoming().diff(existing()).affectedKeys().hasOnly([
-            'displayName',
-            'supplyChainRole',
-            'regionCluster',
-            'updatedAt'
-          ])
+          (
+            // Action: Owner Updates Supply Chain Preferences
+            isOwner(userId) &&
+            existing().uid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName',
+              'supplyChainRole',
+              'regionCluster',
+              'updatedAt'
+            ])
+          ) ||
+          isAdmin()
         );
 
       allow delete: if false;
@@ -252,11 +573,10 @@ service cloud.firestore {
       // =======================================================================
       match /private/{docId} {
         allow get: if isVerifiedUser() &&
-          isOwner(userId) &&
           isValidId(userId) &&
           isValidId(docId) &&
           docId == 'info' &&
-          hasActiveParentUser(userId);
+          ((isOwner(userId) && hasActiveParentUser(userId)) || isAdmin());
 
         allow list: if false;
 
@@ -266,22 +586,29 @@ service cloud.firestore {
           isValidId(docId) &&
           docId == 'info' &&
           isValidUserPrivateInfo(incoming()) &&
+          incoming().ownerId == request.auth.uid &&
+          incoming().email == request.auth.token.email &&
           incoming().updatedAt == request.time &&
           hasActiveParentUser(userId);
 
         allow update: if isVerifiedUser() &&
           isValidUserPrivateInfo(incoming()) &&
-          isOwner(userId) &&
           isValidId(userId) &&
           isValidId(docId) &&
           docId == 'info' &&
           incoming().ownerId == existing().ownerId &&
           incoming().updatedAt == request.time &&
           (
-            // Action: Sync Verified Email Timestamp
-            incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt'])
-          ) &&
-          hasActiveParentUser(userId);
+            (
+              // Action: Sync Verified Email Timestamp
+              isOwner(userId) &&
+              existing().ownerId == request.auth.uid &&
+              incoming().email == request.auth.token.email &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']) &&
+              hasActiveParentUser(userId)
+            ) ||
+            isAdmin()
+          );
 
         allow delete: if false;
       }
@@ -296,7 +623,6 @@ service cloud.firestore {
           existing().ownerId == request.auth.uid &&
           hasActiveParentUser(userId);
 
-        // Pillar 8: Explicit resource.data check with ZERO get()/exists() calls
         allow list: if isOwner(userId) &&
           existing().ownerId == request.auth.uid;
 
@@ -320,7 +646,65 @@ service cloud.firestore {
       }
 
       // =======================================================================
-      // 4. /users/{userId}/subscriptions/{subscriptionId}
+      // 4. /users/{userId}/savedComparisons/{comparisonId}
+      // =======================================================================
+      match /savedComparisons/{comparisonId} {
+        allow get: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(comparisonId) &&
+          existing().ownerId == request.auth.uid &&
+          hasActiveParentUser(userId);
+
+        allow list: if isOwner(userId) &&
+          existing().ownerId == request.auth.uid;
+
+        allow create: if isVerifiedUser() &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(comparisonId) &&
+          isValidSavedComparison(incoming()) &&
+          incoming().ownerId == request.auth.uid &&
+          incoming().status == 'active' &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          hasActiveParentUser(userId);
+
+        allow update: if isVerifiedUser() &&
+          isValidSavedComparison(incoming()) &&
+          isValidId(userId) &&
+          isValidId(comparisonId) &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            (
+              // Action: Lock Comparison Decision (Terminal State Lock)
+              isOwner(userId) &&
+              existing().ownerId == request.auth.uid &&
+              existing().status == 'active' &&
+              incoming().status == 'locked' &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+              hasActiveParentUser(userId)
+            ) ||
+            isAdmin()
+          );
+
+        allow delete: if isVerifiedUser() &&
+          isValidId(userId) &&
+          isValidId(comparisonId) &&
+          (
+            (
+              isOwner(userId) &&
+              existing().ownerId == request.auth.uid &&
+              existing().status != 'locked' &&
+              hasActiveParentUser(userId)
+            ) ||
+            isAdmin()
+          );
+      }
+
+      // =======================================================================
+      // 5. /users/{userId}/subscriptions/{subscriptionId}
       // =======================================================================
       match /subscriptions/{subscriptionId} {
         allow get: if isOwner(userId) &&
@@ -329,7 +713,6 @@ service cloud.firestore {
           existing().ownerId == request.auth.uid &&
           hasActiveParentUser(userId);
 
-        // Pillar 8: Explicit resource.data check with ZERO get()/exists() calls
         allow list: if isOwner(userId) &&
           existing().ownerId == request.auth.uid;
 
@@ -353,14 +736,141 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // 5. /fieldQuotes/{quoteId} (Authenticated User Field Quotes)
+    // 6. /mandiLots/{lotId} (Shared APMC & Verified Market Database)
+    // =========================================================================
+    match /mandiLots/{lotId} {
+      allow get: if isValidId(lotId) &&
+        (
+          existing().status == 'published' ||
+          (isSignedIn() && existing().authorId == request.auth.uid) ||
+          isAdmin()
+        );
+
+      // Pillar 8: Explicit resource.data evaluation with ZERO get()/exists() calls
+      allow list: if existing().status == 'published';
+
+      allow create: if isVerifiedUser() &&
+        isValidId(lotId) &&
+        isValidMandiLot(incoming()) &&
+        incoming().lotId == lotId &&
+        incoming().authorId == request.auth.uid &&
+        incoming().status == 'published' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (
+          (
+            incoming().verificationTier == 'fpo_verified' &&
+            exists(/databases/$(database)/documents/users/$(incoming().authorId))
+          ) ||
+          (
+            incoming().verificationTier == 'official_apmc' &&
+            isAdmin()
+          )
+        );
+
+      allow update: if isVerifiedUser() &&
+        isValidMandiLot(incoming()) &&
+        isValidId(lotId) &&
+        incoming().lotId == existing().lotId &&
+        incoming().authorId == existing().authorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          (
+            // Action: FPO Author Refreshes Active Quote Rates
+            existing().status != 'archived' &&
+            existing().authorId == request.auth.uid &&
+            existing().verificationTier == 'fpo_verified' &&
+            incoming().verificationTier == 'fpo_verified' &&
+            incoming().status == 'published' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'minPrice',
+              'maxPrice',
+              'modalPrice',
+              'change24hPct',
+              'arrivalsQtl',
+              'updatedAt'
+            ])
+          ) ||
+          isAdmin()
+        );
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(lotId) &&
+        (
+          (
+            existing().authorId == request.auth.uid &&
+            existing().verificationTier == 'fpo_verified' &&
+            existing().status != 'archived'
+          ) ||
+          isAdmin()
+        );
+    }
+
+    // =========================================================================
+    // 7. /procurementOrders/{orderId} (Supply Chain Dispatch Ledger Database)
+    // =========================================================================
+    match /procurementOrders/{orderId} {
+      allow get: if isSignedIn() &&
+        isValidId(orderId) &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+
+      // Pillar 8: Explicit resource.data owner enforcement, zero get()/exists()
+      allow list: if isSignedIn() &&
+        existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(orderId) &&
+        isValidProcurementOrder(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().dispatchStatus == 'planned' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(incoming().ownerId));
+
+      allow update: if isVerifiedUser() &&
+        isValidProcurementOrder(incoming()) &&
+        isValidId(orderId) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          (
+            // Action 1: Mark Planned Lot as In Transit
+            existing().ownerId == request.auth.uid &&
+            existing().dispatchStatus == 'planned' &&
+            incoming().dispatchStatus == 'in_transit' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['dispatchStatus', 'updatedAt'])
+          ) ||
+          (
+            // Action 2: Settle Delivered Lot (Terminal State Lock)
+            existing().ownerId == request.auth.uid &&
+            existing().dispatchStatus == 'in_transit' &&
+            incoming().dispatchStatus == 'settled' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['dispatchStatus', 'updatedAt'])
+          ) ||
+          isAdmin()
+        );
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(orderId) &&
+        (
+          (
+            existing().ownerId == request.auth.uid &&
+            existing().dispatchStatus == 'planned'
+          ) ||
+          isAdmin()
+        );
+    }
+
+    // =========================================================================
+    // 8. /fieldQuotes/{quoteId} (Legacy Owner-Scoped Field Quotes)
     // =========================================================================
     match /fieldQuotes/{quoteId} {
       allow get: if isSignedIn() &&
         isValidId(quoteId) &&
         existing().ownerId == request.auth.uid;
 
-      // Pillar 8: Explicit resource.data owner enforcement, zero get()/exists()
       allow list: if isSignedIn() &&
         existing().ownerId == request.auth.uid;
 

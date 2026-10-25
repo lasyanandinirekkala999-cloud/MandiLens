@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { MandiBoard } from './components/MandiBoard';
 import { ArbitrageCalculator } from './components/ArbitrageCalculator';
+import { DatabaseSecuritySection } from './components/DatabaseSecuritySection';
 import { SupplyChainSection } from './components/SupplyChainSection';
 import { AlertSubscription } from './components/AlertSubscription';
 import { AuthModal } from './components/AuthModal';
@@ -71,6 +72,7 @@ class AppErrorBoundary extends React.Component<
 function MandiLensShell() {
   const {
     user,
+    publishedMandiLots,
     cloudWatchlistIds,
     cloudFieldQuotes,
     toggleCloudWatchlist,
@@ -120,13 +122,26 @@ function MandiLensShell() {
     }
   }, [localCustomRecords]);
 
-  // Merge cloud-persisted quotes (when signed in) + session quotes + indexed APMC records
+  // Deduplicate and merge shared Firestore /mandiLots + owner field quotes + local quotes + reference APMC records
   const activeSavedIds = user ? cloudWatchlistIds : localSavedIds;
-  const allRecords = [
-    ...(user ? cloudFieldQuotes : []),
-    ...localCustomRecords,
-    ...INITIAL_MANDI_RECORDS,
-  ];
+  const allRecords = useMemo(() => {
+    const seen = new Set<string>();
+    const combined: MandiLotRecord[] = [];
+    const sources = [
+      ...publishedMandiLots,
+      ...(user ? cloudFieldQuotes : []),
+      ...localCustomRecords,
+      ...INITIAL_MANDI_RECORDS,
+    ];
+
+    for (const item of sources) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        combined.push(item);
+      }
+    }
+    return combined;
+  }, [publishedMandiLots, user, cloudFieldQuotes, localCustomRecords]);
 
   const handleToggleSave = (id: string) => {
     if (user) {
@@ -192,7 +207,9 @@ function MandiLensShell() {
             setComparedIds([]);
             setSelectedCorridorId(corridorId);
           }}
+          onOpenAuth={() => setAuthModalOpen(true)}
         />
+        <DatabaseSecuritySection onOpenAuth={() => setAuthModalOpen(true)} />
         <SupplyChainSection />
         <AlertSubscription onOpenAuth={() => setAuthModalOpen(true)} />
       </main>

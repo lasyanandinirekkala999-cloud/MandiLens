@@ -23,10 +23,13 @@ const REGION_CLUSTERS = [
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const {
     user,
+    isAdmin,
     profile,
     cloudWatchlistIds,
     cloudFieldQuotes,
     cloudSubscriptions,
+    savedComparisons,
+    procurementOrders,
     authError,
     signInWithGoogle,
     signOutUser,
@@ -187,17 +190,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-green-800">
                     <UserCheck className="w-3.5 h-3.5 shrink-0" />
-                    <span>Google Verified Session</span>
+                    <span>
+                      {isAdmin
+                        ? 'Google Verified · Market Administrator'
+                        : 'Google Verified · Isolated PII Vault'}
+                    </span>
                   </div>
                   <p className="text-sm font-semibold text-slate-900 truncate mt-0.5">
                     {user.email}
                   </p>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-0.5 font-mono tabular-nums">
-                    <span>{cloudWatchlistIds.length} Watchlist Lots</span>
+                    <span>{cloudWatchlistIds.length} Watchlist</span>
                     <span aria-hidden="true">·</span>
-                    <span>{cloudFieldQuotes.length} Field Quotes</span>
+                    <span>{savedComparisons.length} Comparisons</span>
                     <span aria-hidden="true">·</span>
-                    <span>{cloudSubscriptions.length} Alert Digests</span>
+                    <span>{procurementOrders.length} Dispatches</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{cloudSubscriptions.length} Digests</span>
                   </div>
                 </div>
 

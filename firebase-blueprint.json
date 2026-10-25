@@ -1,5 +1,31 @@
 {
   "entities": {
+    "AdminRoleDoc": {
+      "title": "AdminRoleDoc",
+      "description": "Trusted role registry document granting market administrator privileges.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the administrator."
+        },
+        "grantedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the admin who granted access."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin access was recorded."
+        }
+      },
+      "required": ["uid", "grantedBy", "createdAt"]
+    },
     "UserProfile": {
       "title": "UserProfile",
       "description": "Non-PII supply chain profile preferences for an authenticated MandiLens user.",
@@ -108,6 +134,135 @@
       },
       "required": ["ownerId", "lotId", "createdAt"]
     },
+    "SavedComparisonDoc": {
+      "title": "SavedComparisonDoc",
+      "description": "Persisted multi-mandi freight and net payout comparison scenario.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the owner."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100,
+          "description": "Scenario label."
+        },
+        "commodity": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Commodity evaluated."
+        },
+        "compareCount": {
+          "type": "number",
+          "description": "Number of markets compared (2 or 3)."
+        },
+        "lotQtl": {
+          "type": "number",
+          "description": "Harvest lot volume in quintals."
+        },
+        "packagingPerQtl": {
+          "type": "number",
+          "description": "Packaging and grading cost per quintal."
+        },
+        "freightPerKmQtl": {
+          "type": "number",
+          "description": "Road freight rate in INR per km per quintal."
+        },
+        "shrinkagePer100Km": {
+          "type": "number",
+          "description": "Moisture and handling shrinkage percentage per 100 km."
+        },
+        "marketAName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "marketAPriceQtl": {
+          "type": "number"
+        },
+        "marketADistanceKm": {
+          "type": "number"
+        },
+        "marketBName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "marketBPriceQtl": {
+          "type": "number"
+        },
+        "marketBDistanceKm": {
+          "type": "number"
+        },
+        "marketCName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "marketCPriceQtl": {
+          "type": "number"
+        },
+        "marketCDistanceKm": {
+          "type": "number"
+        },
+        "bestMarketName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "bestNetPerQtl": {
+          "type": "number"
+        },
+        "bestNetTotalInr": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["active", "locked"],
+          "description": "Scenario lock status; locked is terminal."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "title",
+        "commodity",
+        "compareCount",
+        "lotQtl",
+        "packagingPerQtl",
+        "freightPerKmQtl",
+        "shrinkagePer100Km",
+        "marketAName",
+        "marketAPriceQtl",
+        "marketADistanceKm",
+        "marketBName",
+        "marketBPriceQtl",
+        "marketBDistanceKm",
+        "marketCName",
+        "marketCPriceQtl",
+        "marketCDistanceKm",
+        "bestMarketName",
+        "bestNetPerQtl",
+        "bestNetTotalInr",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
     "AlertSubscriptionDoc": {
       "title": "AlertSubscriptionDoc",
       "description": "Daily morning mandi clearing price digest subscription owned by an authenticated user.",
@@ -171,6 +326,195 @@
         "createdAt"
       ]
     },
+    "MandiLotDoc": {
+      "title": "MandiLotDoc",
+      "description": "Published APMC wholesale auction rate and arrival record stored in Firestore.",
+      "type": "object",
+      "properties": {
+        "lotId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "commodity": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "variety": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 40,
+          "enum": ["Cereals & Pulses", "Vegetables", "Oilseeds & Spices"]
+        },
+        "mandi": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "district": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "state": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        "grade": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        "moistureSpec": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        "minPrice": {
+          "type": "number"
+        },
+        "maxPrice": {
+          "type": "number"
+        },
+        "modalPrice": {
+          "type": "number"
+        },
+        "change24hPct": {
+          "type": "number"
+        },
+        "arrivalsQtl": {
+          "type": "number"
+        },
+        "defaultDistanceKm": {
+          "type": "number"
+        },
+        "mandiFeePct": {
+          "type": "number"
+        },
+        "hamaliPerQtl": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["published", "archived"]
+        },
+        "verificationTier": {
+          "type": "string",
+          "maxLength": 24,
+          "enum": ["official_apmc", "fpo_verified"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "lotId",
+        "authorId",
+        "commodity",
+        "variety",
+        "category",
+        "mandi",
+        "district",
+        "state",
+        "grade",
+        "moistureSpec",
+        "minPrice",
+        "maxPrice",
+        "modalPrice",
+        "change24hPct",
+        "arrivalsQtl",
+        "defaultDistanceKm",
+        "mandiFeePct",
+        "hamaliPerQtl",
+        "status",
+        "verificationTier",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ProcurementLedgerDoc": {
+      "title": "ProcurementLedgerDoc",
+      "description": "Supply chain truck dispatch and procurement settlement ledger record.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "organization": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "commodity": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "originCluster": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "destinationMandi": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "quantityQtl": {
+          "type": "number"
+        },
+        "expectedNetPerQtl": {
+          "type": "number"
+        },
+        "dispatchStatus": {
+          "type": "string",
+          "maxLength": 20,
+          "enum": ["planned", "in_transit", "settled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "organization",
+        "commodity",
+        "originCluster",
+        "destinationMandi",
+        "quantityQtl",
+        "expectedNetPerQtl",
+        "dispatchStatus",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
     "FieldQuoteDoc": {
       "title": "FieldQuoteDoc",
       "description": "User-logged field mandi auction quote persisted in Firestore.",
@@ -180,71 +524,58 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 128,
-          "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "UID of the authenticated user who logged the quote."
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
         },
         "commodity": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 60,
-          "description": "Commodity name."
+          "maxLength": 60
         },
         "variety": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 80,
-          "description": "Crop variety specification."
+          "maxLength": 80
         },
         "category": {
           "type": "string",
           "maxLength": 40,
-          "enum": ["Cereals & Pulses", "Vegetables", "Oilseeds & Spices"],
-          "description": "Commodity classification."
+          "enum": ["Cereals & Pulses", "Vegetables", "Oilseeds & Spices"]
         },
         "mandi": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 80,
-          "description": "APMC or sub-yard name."
+          "maxLength": 80
         },
         "district": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 60,
-          "description": "District name."
+          "maxLength": 60
         },
         "state": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 50,
-          "description": "State name."
+          "maxLength": 50
         },
         "grade": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 50,
-          "description": "Lot quality grade."
+          "maxLength": 50
         },
         "modalPrice": {
-          "type": "number",
-          "description": "Modal clearing price in INR per quintal."
+          "type": "number"
         },
         "minPrice": {
-          "type": "number",
-          "description": "Minimum clearing price in INR per quintal."
+          "type": "number"
         },
         "maxPrice": {
-          "type": "number",
-          "description": "Maximum clearing price in INR per quintal."
+          "type": "number"
         },
         "arrivalsQtl": {
-          "type": "number",
-          "description": "Daily arrival volume in quintals."
+          "type": "number"
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time",
-          "description": "Server timestamp of quote submission."
+          "format": "date-time"
         }
       },
       "required": [
@@ -265,6 +596,10 @@
     }
   },
   "firestore": {
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRoleDoc" },
+      "description": "Trusted registry of MandiLens market administrators."
+    },
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserProfile" },
       "description": "Authenticated user supply chain profile (non-PII)."
@@ -277,13 +612,25 @@
       "schema": { "$ref": "#/entities/WatchlistItem" },
       "description": "Per-user subcollection of saved mandi lots."
     },
+    "/users/{userId}/savedComparisons/{comparisonId}": {
+      "schema": { "$ref": "#/entities/SavedComparisonDoc" },
+      "description": "Per-user subcollection of saved multi-mandi arbitrage comparisons."
+    },
     "/users/{userId}/subscriptions/{subscriptionId}": {
       "schema": { "$ref": "#/entities/AlertSubscriptionDoc" },
       "description": "Per-user subcollection of daily corridor alert subscriptions."
     },
+    "/mandiLots/{lotId}": {
+      "schema": { "$ref": "#/entities/MandiLotDoc" },
+      "description": "Shared database of verified APMC and FPO mandi auction lots."
+    },
+    "/procurementOrders/{orderId}": {
+      "schema": { "$ref": "#/entities/ProcurementLedgerDoc" },
+      "description": "Owner-scoped supply chain truck dispatch and settlement ledger."
+    },
     "/fieldQuotes/{quoteId}": {
       "schema": { "$ref": "#/entities/FieldQuoteDoc" },
-      "description": "User-owned logged mandi field auction observations."
+      "description": "Owner-scoped logged mandi field auction observations."
     }
   }
 }
