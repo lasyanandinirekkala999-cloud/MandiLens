@@ -1,25 +1,35 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownRight,
   ArrowUpDown,
   ArrowUpRight,
   Bookmark,
+  Check,
   Download,
   Plus,
+  Scale,
   Search,
   SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import { CropCategory, MandiLotRecord } from '../data/mandiData';
 
 interface MandiBoardProps {
   records: MandiLotRecord[];
+  externalSearchQuery: string;
   savedIds: string[];
+  comparedIds: string[];
   onToggleSave: (id: string) => void;
+  onToggleCompare: (id: string) => void;
+  onClearCompare: () => void;
+  onJumpToCompare: () => void;
   onAddFieldQuote: (newRecord: MandiLotRecord) => void;
   onSelectCorridor: (corridorId: string) => void;
 }
 
 type SortField = 'modalPrice' | 'change24hPct' | 'arrivalsQtl';
+type PriceUnit = 'qtl' | 'kg' | 'tonne';
+type TrendFilter = 'all' | 'rising' | 'softening';
 
 const CATEGORIES: Array<'All' | CropCategory> = [
   'All',
@@ -30,20 +40,34 @@ const CATEGORIES: Array<'All' | CropCategory> = [
 
 export const MandiBoard: React.FC<MandiBoardProps> = ({
   records,
+  externalSearchQuery,
   savedIds,
+  comparedIds,
   onToggleSave,
+  onToggleCompare,
+  onClearCompare,
+  onJumpToCompare,
   onAddFieldQuote,
   onSelectCorridor,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'All' | CropCategory>('All');
   const [selectedState, setSelectedState] = useState<string>('All States');
+  const [trendFilter, setTrendFilter] = useState<TrendFilter>('all');
+  const [priceUnit, setPriceUnit] = useState<PriceUnit>('qtl');
   const [savedOnly, setSavedOnly] = useState(false);
   const [sortField, setSortField] = useState<SortField>('modalPrice');
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedLotId, setSelectedLotId] = useState<string>(records[0]?.id ?? '');
   const [activeChartIdx, setActiveChartIdx] = useState<number>(6);
   const [showQuoteForm, setShowQuoteForm] = useState(false);
+
+  // Sync external search query from Hero quick search
+  useEffect(() => {
+    if (externalSearchQuery !== undefined) {
+      setSearchQuery(externalSearchQuery);
+    }
+  }, [externalSearchQuery]);
 
   // Inline Field Quote Form State
   const [quoteCommodity, setQuoteCommodity] = useState('Onion');
@@ -56,6 +80,18 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
   const [quoteArrivals, setQuoteArrivals] = useState('8400');
   const [quoteError, setQuoteError] = useState('');
 
+  const unitLabel = priceUnit === 'qtl' ? 'qtl' : priceUnit === 'kg' ? 'kg' : 'MT';
+
+  const formatUnitPrice = (pricePerQtl: number): string => {
+    if (priceUnit === 'kg') {
+      return `₹${(pricePerQtl / 100).toFixed(2)}`;
+    }
+    if (priceUnit === 'tonne') {
+      return `₹${Math.round(pricePerQtl * 10).toLocaleString('en-IN')}`;
+    }
+    return `₹${Math.round(pricePerQtl).toLocaleString('en-IN')}`;
+  };
+
   const availableStates = useMemo(() => {
     const states = Array.from(new Set(records.map((r) => r.state))).sort();
     return ['All States', ...states];
@@ -67,6 +103,8 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
       .filter((r) => {
         if (selectedCategory !== 'All' && r.category !== selectedCategory) return false;
         if (selectedState !== 'All States' && r.state !== selectedState) return false;
+        if (trendFilter === 'rising' && r.change24hPct < 0) return false;
+        if (trendFilter === 'softening' && r.change24hPct >= 0) return false;
         if (savedOnly && !savedIds.includes(r.id)) return false;
         if (!q) return true;
         return (
@@ -74,14 +112,49 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
           r.variety.toLowerCase().includes(q) ||
           r.mandi.toLowerCase().includes(q) ||
           r.district.toLowerCase().includes(q) ||
-          r.state.toLowerCase().includes(q)
+          r.state.toLowerCase().includes(q) ||
+          r.grade.toLowerCase().includes(q)
         );
       })
       .sort((a, b) => {
         const diff = a[sortField] - b[sortField];
         return sortAsc ? diff : -diff;
       });
-  }, [records, searchQuery, selectedCategory, selectedState, savedOnly, savedIds, sortField, sortAsc]);
+  }, [
+    records,
+    searchQuery,
+    selectedCategory,
+    selectedState,
+    trendFilter,
+    savedOnly,
+    savedIds,
+    sortField,
+    sortAsc,
+  ]);
+
+  // Dynamic Dashboard Summary Metrics for Filtered Results
+  const dashboardStats = useMemo(() => {
+    if (filteredRecords.length === 0) {
+      return {
+        count: 0,
+        avgModal: 0,
+        highestRecord: null as MandiLotRecord | null,
+        totalArrivals: 0,
+      };
+    }
+    const sumModal = filteredRecords.reduce((acc, r) => acc + r.modalPrice, 0);
+    const totalArrivals = filteredRecords.reduce((acc, r) => acc + r.arrivalsQtl, 0);
+    const highestRecord = filteredRecords.reduce(
+      (best, curr) => (curr.modalPrice > best.modalPrice ? curr : best),
+      filteredRecords[0]
+    );
+    return {
+      count: filteredRecords.length,
+      avgModal: sumModal / filteredRecords.length,
+      highestRecord,
+      totalArrivals,
+    };
+  }, [filteredRecords]);
 
   const selectedRecord = useMemo(() => {
     return (
@@ -90,6 +163,11 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
       records[0]
     );
   }, [filteredRecords, selectedLotId, records]);
+
+  const comparedRecords = useMemo(
+    () => records.filter((r) => comparedIds.includes(r.id)),
+    [records, comparedIds]
+  );
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -104,6 +182,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
     setSearchQuery('');
     setSelectedCategory('All');
     setSelectedState('All States');
+    setTrendFilter('all');
     setSavedOnly(false);
   };
 
@@ -189,6 +268,9 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
       modalPrice: modalNum,
       change24hPct: 1.4,
       arrivalsQtl: arrivalsNum,
+      defaultDistanceKm: 40,
+      mandiFeePct: 1.0,
+      hamaliPerQtl: 25,
       updatedAgo: 'Just logged',
       corridorId:
         quoteCategory === 'Vegetables'
@@ -231,34 +313,63 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
   const maxChartArrivals = Math.max(...chartPoints.map((d) => d.arrivals), 1);
 
   return (
-    <section id="mandi-rates" className="py-14 lg:py-20 border-b border-slate-200 bg-slate-50">
+    <section id="price-dashboard" className="py-12 lg:py-16 border-b border-slate-200 bg-slate-50">
       <div className="max-w-7xl mx-auto px-6">
         {/* Section Heading & Primary Toolbar */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6">
           <div>
             <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-2">
-              <span>Wholesale Auction Sheet</span>
+              <span>Live Wholesale Clearing Feed</span>
               <span aria-hidden="true">·</span>
-              <span>Prices in ₹ per Quintal (100 kg)</span>
+              <span>Select up to 3 markets to compare net payouts</span>
             </div>
             <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Regional Mandi Price &amp; Arrival Board
+              Searchable Mandi Price Dashboard
             </h2>
-            <p className="mt-2 text-sm sm:text-base text-slate-600 max-w-2xl">
-              Compare open-outcry modal rates, min–max quality spreads, and daily gate arrivals.
-              Select any mandi row to inspect its 7-day trend and farm-to-terminal margin split.
+            <p className="mt-1.5 text-sm sm:text-base text-slate-600 max-w-2xl">
+              Search by crop, variety, APMC yard, district, or state. Inspect 7-day arrival trends
+              or add any market directly to the comparison calculator below.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {/* Unit Switcher */}
+            <div
+              role="group"
+              aria-label="Select price unit"
+              className="inline-flex items-center gap-0.5 p-1 bg-slate-200/80 rounded-lg"
+            >
+              {(
+                [
+                  { id: 'qtl', label: '₹ / Quintal' },
+                  { id: 'kg', label: '₹ / Kg' },
+                  { id: 'tonne', label: '₹ / Tonne' },
+                ] as const
+              ).map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => setPriceUnit(u.id)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                    priceUnit === u.id
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {u.label}
+                </button>
+              ))}
+            </div>
+
             <button
               type="button"
               onClick={() => setShowQuoteForm((prev) => !prev)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-800 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors duration-150 whitespace-nowrap shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>{showQuoteForm ? 'Close Quote Form' : 'Log Field Quote'}</span>
+              <span>{showQuoteForm ? 'Close Form' : 'Log Field Quote'}</span>
             </button>
+
             <button
               type="button"
               onClick={handleExportCsv}
@@ -275,17 +386,16 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
         {showQuoteForm && (
           <form
             onSubmit={handleQuoteSubmit}
-            className="mb-8 bg-white border border-slate-200 rounded-xl p-5 sm:p-6"
+            className="mb-6 bg-white border border-slate-200 rounded-xl p-5 sm:p-6"
           >
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div>
-                <h3 className="font-display text-base font-semibold text-slate-900">
-                  Submit FPO / Gate Auction Observation
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Add a verified local yard rate to compare alongside indexed APMC markets in this session.
-                </p>
-              </div>
+            <div className="mb-4">
+              <h3 className="font-display text-base font-semibold text-slate-900">
+                Submit FPO / Gate Auction Observation
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Add a local yard quote to compare alongside indexed APMC markets in the dashboard
+                and calculator.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
@@ -322,7 +432,9 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">District &amp; State</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  District &amp; State
+                </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -340,14 +452,19 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                     <option value="Madhya Pradesh">MP</option>
                     <option value="Karnataka">KA</option>
                     <option value="Punjab">PB</option>
+                    <option value="Haryana">HR</option>
                     <option value="Gujarat">GJ</option>
                     <option value="Rajasthan">RJ</option>
                     <option value="Telangana">TG</option>
+                    <option value="Andhra Pradesh">AP</option>
+                    <option value="Uttar Pradesh">UP</option>
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Modal (₹/qtl)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Modal (₹/qtl)
+                </label>
                 <input
                   type="number"
                   value={quoteModal}
@@ -356,7 +473,9 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Arrivals (qtl)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Arrivals (qtl)
+                </label>
                 <input
                   type="number"
                   value={quoteArrivals}
@@ -387,93 +506,197 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                 type="submit"
                 className="px-4 py-2 text-xs font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 transition-colors whitespace-nowrap"
               >
-                Save Quote to Board
+                Save Quote to Dashboard
               </button>
             </div>
           </form>
         )}
 
-        {/* Filter & Search Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
-          {/* Interactive Segmented Category Tabs */}
-          <div
-            role="tablist"
-            aria-label="Filter commodities by category"
-            className="inline-flex flex-wrap items-center gap-1 p-1 bg-slate-200/80 rounded-lg self-start"
-          >
-            {CATEGORIES.map((category) => {
-              const active = selectedCategory === category;
-              return (
+        {/* Prominent Search & Multi-Facet Filter Bar */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-200 space-y-4">
+            {/* Primary Search Input + Dropdown Filters */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+              <div className="lg:col-span-6 relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search commodity, variety, mandi yard, district, or state..."
+                  aria-label="Search commodity, variety, mandi yard, district, or state"
+                  className="w-full pl-10 pr-9 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-green-800"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search query"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="lg:col-span-3 relative">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select
+                  value={selectedState}
+                  onChange={(e) => setSelectedState(e.target.value)}
+                  aria-label="Filter by state"
+                  className="w-full pl-8 pr-7 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium focus:outline-none focus:bg-white focus:border-green-800"
+                >
+                  {availableStates.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="lg:col-span-3 flex items-center gap-2">
+                <select
+                  value={trendFilter}
+                  onChange={(e) => setTrendFilter(e.target.value as TrendFilter)}
+                  aria-label="Filter by 24h price trend"
+                  className="flex-1 px-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg text-slate-800 font-medium focus:outline-none focus:bg-white focus:border-green-800"
+                >
+                  <option value="all">All 24h Trends</option>
+                  <option value="rising">Rising Rates (+)</option>
+                  <option value="softening">Softening Rates (−)</option>
+                </select>
+
                 <button
-                  key={category}
-                  role="tab"
-                  aria-selected={active}
                   type="button"
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors duration-150 whitespace-nowrap shrink-0 ${
-                    active
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                  onClick={() => setSavedOnly((prev) => !prev)}
+                  aria-pressed={savedOnly}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold rounded-lg border transition-colors duration-150 whitespace-nowrap shrink-0 ${
+                    savedOnly
+                      ? 'bg-green-800 text-white border-green-800'
+                      : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
                   }`}
                 >
-                  {category === 'All' ? 'All Crops' : category}
+                  <Bookmark className="w-3.5 h-3.5" />
+                  <span>Saved ({savedIds.length})</span>
                 </button>
-              );
-            })}
-          </div>
-
-          {/* Search, State Selector, and Watchlist Filter */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 sm:flex-initial sm:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search crop, mandi, district..."
-                aria-label="Search crop, mandi, or district"
-                className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-green-800"
-              />
+              </div>
             </div>
 
-            <div className="relative">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={selectedState}
-                onChange={(e) => setSelectedState(e.target.value)}
-                aria-label="Filter by state"
-                className="pl-8 pr-7 py-2 text-xs sm:text-sm bg-white border border-slate-300 rounded-lg text-slate-800 font-medium focus:outline-none focus:border-green-800"
+            {/* Category Tabs + Active Filter Reset */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div
+                role="tablist"
+                aria-label="Filter commodities by category"
+                className="inline-flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-lg"
               >
-                {availableStates.map((st) => (
-                  <option key={st} value={st}>
-                    {st}
-                  </option>
-                ))}
-              </select>
+                {CATEGORIES.map((category) => {
+                  const active = selectedCategory === category;
+                  return (
+                    <button
+                      key={category}
+                      role="tab"
+                      aria-selected={active}
+                      type="button"
+                      onClick={() => setSelectedCategory(category)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors duration-150 whitespace-nowrap shrink-0 ${
+                        active
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {category === 'All' ? 'All Commodities' : category}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {(searchQuery ||
+                selectedCategory !== 'All' ||
+                selectedState !== 'All States' ||
+                trendFilter !== 'all' ||
+                savedOnly) && (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="text-xs font-semibold text-green-800 hover:underline whitespace-nowrap"
+                >
+                  Clear Active Filters
+                </button>
+              )}
             </div>
-
-            <button
-              type="button"
-              onClick={() => setSavedOnly((prev) => !prev)}
-              aria-pressed={savedOnly}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg border transition-colors duration-150 whitespace-nowrap shrink-0 ${
-                savedOnly
-                  ? 'bg-green-800 text-white border-green-800'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              <Bookmark className="w-3.5 h-3.5" />
-              <span>Watchlist ({savedIds.length})</span>
-            </button>
           </div>
-        </div>
 
-        {/* High-Density Data Table */}
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          {/* Live Filtered KPI Strip */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border-b border-slate-200 bg-slate-50/70">
+            <div className="px-5 py-3.5">
+              <p className="text-xs text-slate-500">Matching Markets</p>
+              <p className="mt-0.5 font-mono tabular-nums text-base sm:text-lg font-semibold text-slate-900">
+                {dashboardStats.count} of {records.length} Yards
+              </p>
+            </div>
+            <div className="px-5 py-3.5">
+              <p className="text-xs text-slate-500">Average Modal Rate</p>
+              <p className="mt-0.5 font-mono tabular-nums text-base sm:text-lg font-semibold text-slate-900">
+                {dashboardStats.count > 0
+                  ? `${formatUnitPrice(dashboardStats.avgModal)} / ${unitLabel}`
+                  : '—'}
+              </p>
+            </div>
+            <div className="px-5 py-3.5">
+              <p className="text-xs text-slate-500">Highest Clearing Market</p>
+              <p className="mt-0.5 font-mono tabular-nums text-base sm:text-lg font-semibold text-green-800 truncate">
+                {dashboardStats.highestRecord
+                  ? `${formatUnitPrice(dashboardStats.highestRecord.modalPrice)} · ${
+                      dashboardStats.highestRecord.mandi
+                    }`
+                  : '—'}
+              </p>
+            </div>
+            <div className="px-5 py-3.5">
+              <p className="text-xs text-slate-500">Filtered Gate Arrivals</p>
+              <p className="mt-0.5 font-mono tabular-nums text-base sm:text-lg font-semibold text-slate-900">
+                {dashboardStats.totalArrivals.toLocaleString('en-IN')} qtl
+              </p>
+            </div>
+          </div>
+
+          {/* Active Comparison Selection Tray */}
+          {comparedRecords.length > 0 && (
+            <div className="px-5 py-3 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800">
+              <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                <Scale className="w-4 h-4 text-green-400 shrink-0" />
+                <span className="font-semibold">
+                  Comparing {comparedRecords.length}/3 Markets:
+                </span>
+                <span className="text-slate-300">
+                  {comparedRecords.map((r) => `${r.mandi} (${r.commodity})`).join(' · ')}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={onClearCompare}
+                  className="text-xs text-slate-300 hover:text-white whitespace-nowrap"
+                >
+                  Clear Selection
+                </button>
+                <button
+                  type="button"
+                  onClick={onJumpToCompare}
+                  className="px-3.5 py-1.5 text-xs font-semibold bg-green-700 hover:bg-green-600 text-white rounded-md transition-colors whitespace-nowrap shrink-0"
+                >
+                  Compare Net Payouts Below
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* High-Density Data Table */}
           {filteredRecords.length === 0 ? (
             <div className="py-14 px-6 text-center">
               <p className="font-display text-lg font-semibold text-slate-900">
-                No mandi auction lots match your current filter
+                No mandi auction lots match your search
               </p>
               <p className="mt-1 text-sm text-slate-500 max-w-md mx-auto">
                 Clear the active search term, state filter, or watchlist toggle to view all
@@ -484,7 +707,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                 onClick={resetFilters}
                 className="mt-5 inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 transition-colors whitespace-nowrap"
               >
-                Reset Filters
+                Reset All Filters
               </button>
             </div>
           ) : (
@@ -492,9 +715,11 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold text-slate-600">
-                    <th className="py-3 pl-5 pr-3 whitespace-nowrap">Commodity &amp; Spec</th>
+                    <th className="py-3 pl-5 pr-3 whitespace-nowrap">Commodity &amp; Grade</th>
                     <th className="py-3 px-3 whitespace-nowrap">APMC Mandi Yard</th>
-                    <th className="py-3 px-3 text-right whitespace-nowrap">Min – Max (₹/qtl)</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">
+                      Min – Max (/{unitLabel})
+                    </th>
                     <th className="py-3 px-3 text-right whitespace-nowrap">
                       <button
                         type="button"
@@ -525,13 +750,14 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                         <ArrowUpDown className="w-3.5 h-3.5" />
                       </button>
                     </th>
-                    <th className="py-3 pl-3 pr-5 text-right whitespace-nowrap">Save</th>
+                    <th className="py-3 pl-3 pr-5 text-right whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-sm">
                   {filteredRecords.map((row) => {
                     const isSelected = selectedRecord?.id === row.id;
                     const isSaved = savedIds.includes(row.id);
+                    const isCompared = comparedIds.includes(row.id);
                     const isPositive = row.change24hPct >= 0;
 
                     return (
@@ -564,10 +790,10 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                           </div>
                         </td>
                         <td className="py-3.5 px-3 text-right font-mono tabular-nums text-xs sm:text-sm text-slate-600 whitespace-nowrap">
-                          ₹{row.minPrice.toLocaleString('en-IN')} – ₹{row.maxPrice.toLocaleString('en-IN')}
+                          {formatUnitPrice(row.minPrice)} – {formatUnitPrice(row.maxPrice)}
                         </td>
                         <td className="py-3.5 px-3 text-right font-mono tabular-nums font-semibold text-slate-900 whitespace-nowrap">
-                          ₹{row.modalPrice.toLocaleString('en-IN')}
+                          {formatUnitPrice(row.modalPrice)}
                         </td>
                         <td className="py-3.5 px-3 text-right font-mono tabular-nums whitespace-nowrap">
                           <span
@@ -593,22 +819,38 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                           className="py-3.5 pl-3 pr-5 text-right whitespace-nowrap"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <button
-                            type="button"
-                            onClick={() => onToggleSave(row.id)}
-                            aria-label={
-                              isSaved
-                                ? `Remove ${row.commodity} at ${row.mandi} from watchlist`
-                                : `Save ${row.commodity} at ${row.mandi} to watchlist`
-                            }
-                            className={`inline-flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
-                              isSaved
-                                ? 'text-green-800 bg-green-100/80'
-                                : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
-                            }`}
-                          >
-                            <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-                          </button>
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => onToggleCompare(row.id)}
+                              aria-pressed={isCompared}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors whitespace-nowrap shrink-0 ${
+                                isCompared
+                                  ? 'bg-green-800 text-white border-green-800'
+                                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isCompared && <Check className="w-3 h-3" />}
+                              <span>{isCompared ? 'Comparing' : 'Compare'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => onToggleSave(row.id)}
+                              aria-label={
+                                isSaved
+                                  ? `Remove ${row.commodity} at ${row.mandi} from watchlist`
+                                  : `Save ${row.commodity} at ${row.mandi} to watchlist`
+                              }
+                              className={`inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                                isSaved
+                                  ? 'text-green-800 bg-green-100/80'
+                                  : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -624,7 +866,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                    <span>Selected Lot Drilldown</span>
+                    <span>Selected Market Inspector</span>
                     <span aria-hidden="true">·</span>
                     <span>{selectedRecord.category}</span>
                     <span aria-hidden="true">·</span>
@@ -636,11 +878,11 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                 </div>
 
                 <a
-                  href="#calculator"
+                  href="#comparison-calculator"
                   onClick={() => onSelectCorridor(selectedRecord.corridorId)}
                   className="inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
                 >
-                  Load Corridor in Freight Calculator
+                  Load Corridor in Comparison Calculator
                 </a>
               </div>
 
@@ -653,7 +895,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                         7-Day Modal Price &amp; Arrival Pressure
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Click or hover any trading session to inspect daily volume vs. clearing rate
+                        Select any trading session to inspect daily volume vs. clearing rate
                       </p>
                     </div>
                     {chartPoints[activeChartIdx] && (
@@ -662,7 +904,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                           {chartPoints[activeChartIdx].day}:{' '}
                         </span>
                         <span className="text-sm font-semibold text-green-800">
-                          ₹{chartPoints[activeChartIdx].modal.toLocaleString('en-IN')}/qtl
+                          {formatUnitPrice(chartPoints[activeChartIdx].modal)}/{unitLabel}
                         </span>
                         <span className="text-xs text-slate-500">
                           {' '}
@@ -691,7 +933,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                             onMouseEnter={() => setActiveChartIdx(idx)}
                             onClick={() => setActiveChartIdx(idx)}
                             className="group flex flex-col items-center justify-end h-full focus:outline-none"
-                            aria-label={`${pt.day}: Modal rate ₹${pt.modal} per quintal, arrivals ${pt.arrivals} quintals`}
+                            aria-label={`${pt.day}: Modal rate ${formatUnitPrice(pt.modal)} per ${unitLabel}, arrivals ${pt.arrivals} quintals`}
                           >
                             <span
                               className={`font-mono tabular-nums text-[11px] mb-1.5 transition-colors ${
@@ -700,7 +942,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                                   : 'text-slate-500 group-hover:text-slate-800'
                               }`}
                             >
-                              ₹{pt.modal}
+                              {formatUnitPrice(pt.modal)}
                             </span>
                             <div className="w-full max-w-[38px] flex flex-col justify-end h-full">
                               <div
@@ -741,7 +983,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                       Farmgate-to-Terminal Supply Chain Breakdown
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Transparent cost build-up per quintal from farmer realization to destination buyer
+                      Transparent cost build-up per {unitLabel} from farmer realization to destination buyer
                     </p>
                   </div>
 
@@ -760,35 +1002,35 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                         )
                       </dt>
                       <dd className="font-mono tabular-nums font-semibold text-slate-900 whitespace-nowrap">
-                        ₹{selectedRecord.supplyChain.farmgateNet.toLocaleString('en-IN')} / qtl
+                        {formatUnitPrice(selectedRecord.supplyChain.farmgateNet)} / {unitLabel}
                       </dd>
                     </div>
 
                     <div className="py-2.5 flex items-center justify-between gap-4 text-xs sm:text-sm">
                       <dt className="text-slate-600">Grading, Bagging &amp; Packhouse Labor</dt>
                       <dd className="font-mono tabular-nums text-slate-700 whitespace-nowrap">
-                        + ₹{selectedRecord.supplyChain.gradingPackaging} / qtl
+                        + {formatUnitPrice(selectedRecord.supplyChain.gradingPackaging)} / {unitLabel}
                       </dd>
                     </div>
 
                     <div className="py-2.5 flex items-center justify-between gap-4 text-xs sm:text-sm">
                       <dt className="text-slate-600">Village-to-Mandi Tractor / LCV Freight</dt>
                       <dd className="font-mono tabular-nums text-slate-700 whitespace-nowrap">
-                        + ₹{selectedRecord.supplyChain.localFreight} / qtl
+                        + {formatUnitPrice(selectedRecord.supplyChain.localFreight)} / {unitLabel}
                       </dd>
                     </div>
 
                     <div className="py-2.5 flex items-center justify-between gap-4 text-xs sm:text-sm">
                       <dt className="text-slate-600">APMC Market Cess, Weighment &amp; Hamali</dt>
                       <dd className="font-mono tabular-nums text-slate-700 whitespace-nowrap">
-                        + ₹{selectedRecord.supplyChain.mandiCessCommission} / qtl
+                        + {formatUnitPrice(selectedRecord.supplyChain.mandiCessCommission)} / {unitLabel}
                       </dd>
                     </div>
 
                     <div className="py-2.5 flex items-center justify-between gap-4 bg-white px-2 -mx-2 rounded">
                       <dt className="font-semibold text-slate-900">Cleared APMC Modal Auction Rate</dt>
                       <dd className="font-mono tabular-nums font-semibold text-slate-900 whitespace-nowrap">
-                        ₹{selectedRecord.supplyChain.modalAuctionPrice.toLocaleString('en-IN')} / qtl
+                        {formatUnitPrice(selectedRecord.supplyChain.modalAuctionPrice)} / {unitLabel}
                       </dd>
                     </div>
 
@@ -797,7 +1039,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                         Line-Haul Dispatch &amp; Transit Shrinkage Allowance
                       </dt>
                       <dd className="font-mono tabular-nums text-slate-700 whitespace-nowrap">
-                        + ₹{selectedRecord.supplyChain.interstateLogistics} / qtl
+                        + {formatUnitPrice(selectedRecord.supplyChain.interstateLogistics)} / {unitLabel}
                       </dd>
                     </div>
 
@@ -806,7 +1048,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
                         Destination Wholesale Landed Cost
                       </dt>
                       <dd className="font-mono tabular-nums font-bold text-green-800 whitespace-nowrap">
-                        ₹{selectedRecord.supplyChain.terminalLandedPrice.toLocaleString('en-IN')} / qtl
+                        {formatUnitPrice(selectedRecord.supplyChain.terminalLandedPrice)} / {unitLabel}
                       </dd>
                     </div>
                   </dl>

@@ -21,16 +21,16 @@ export const Navbar: React.FC = () => {
           className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600"
         >
           <a
-            href="#mandi-rates"
+            href="#price-dashboard"
             className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
           >
-            Mandi Rates
+            Price Dashboard
           </a>
           <a
-            href="#calculator"
+            href="#comparison-calculator"
             className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
           >
-            Freight Calculator
+            Comparison Calculator
           </a>
           <a
             href="#supply-chain"
@@ -71,18 +71,18 @@ export const Navbar: React.FC = () => {
         <div className="md:hidden border-t border-slate-200 bg-white px-6 py-4 space-y-3">
           <nav className="flex flex-col space-y-2.5 text-sm font-medium text-slate-700">
             <a
-              href="#mandi-rates"
+              href="#price-dashboard"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1.5 hover:text-slate-900 whitespace-nowrap"
             >
-              Mandi Rates
+              Price Dashboard
             </a>
             <a
-              href="#calculator"
+              href="#comparison-calculator"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1.5 hover:text-slate-900 whitespace-nowrap"
             >
-              Freight Calculator
+              Comparison Calculator
             </a>
             <a
               href="#supply-chain"

@@ -250,11 +250,11 @@ export const AlertSubscription: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-slate-600">
-            <a href="#mandi-rates" className="hover:text-slate-900 whitespace-nowrap">
-              Mandi Rates
+            <a href="#price-dashboard" className="hover:text-slate-900 whitespace-nowrap">
+              Price Dashboard
             </a>
-            <a href="#calculator" className="hover:text-slate-900 whitespace-nowrap">
-              Freight Calculator
+            <a href="#comparison-calculator" className="hover:text-slate-900 whitespace-nowrap">
+              Comparison Calculator
             </a>
             <a href="#supply-chain" className="hover:text-slate-900 whitespace-nowrap">
               Supply Chain

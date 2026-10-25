@@ -31,6 +31,9 @@ export interface MandiLotRecord {
   modalPrice: number;
   change24hPct: number;
   arrivalsQtl: number;
+  defaultDistanceKm: number;
+  mandiFeePct: number;
+  hamaliPerQtl: number;
   updatedAgo: string;
   corridorId: string;
   history7d: DailyPoint[];
@@ -40,6 +43,7 @@ export interface MandiLotRecord {
 export interface CandidateMandiOption {
   id: string;
   name: string;
+  commodityLabel: string;
   tierLabel: string;
   distanceKm: number;
   modalPriceQtl: number;
@@ -53,6 +57,7 @@ export interface ArbitrageCorridor {
   commodity: string;
   originCluster: string;
   defaultLotQtl: number;
+  defaultPackagingPerQtl: number;
   defaultFreightPerKmQtl: number;
   defaultShrinkagePctPer100Km: number;
   mandis: CandidateMandiOption[];
@@ -74,6 +79,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 2280,
     change24hPct: 4.6,
     arrivalsQtl: 16400,
+    defaultDistanceKm: 38,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 26,
     updatedAgo: '18 mins ago',
     corridorId: 'corridor-onion-nashik',
     history7d: [
@@ -96,6 +104,45 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     },
   },
   {
+    id: 'lot-pimpalgaon-onion',
+    commodity: 'Onion',
+    variety: 'Red Export Crate',
+    category: 'Vegetables',
+    mandi: 'Pimpalgaon Baswant APMC',
+    district: 'Nashik',
+    state: 'Maharashtra',
+    grade: 'Grade A 55mm+',
+    moistureSpec: 'Double Cured',
+    minPrice: 1980,
+    maxPrice: 2610,
+    modalPrice: 2340,
+    change24hPct: 3.8,
+    arrivalsQtl: 14900,
+    defaultDistanceKm: 44,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 28,
+    updatedAgo: '22 mins ago',
+    corridorId: 'corridor-onion-nashik',
+    history7d: [
+      { day: '18 Oct', modal: 2120, arrivals: 16800 },
+      { day: '19 Oct', modal: 2160, arrivals: 16200 },
+      { day: '20 Oct', modal: 2150, arrivals: 16500 },
+      { day: '21 Oct', modal: 2210, arrivals: 15800 },
+      { day: '22 Oct', modal: 2240, arrivals: 15400 },
+      { day: '23 Oct', modal: 2255, arrivals: 15200 },
+      { day: '24 Oct', modal: 2340, arrivals: 14900 },
+    ],
+    supplyChain: {
+      farmgateNet: 2045,
+      gradingPackaging: 100,
+      localFreight: 120,
+      mandiCessCommission: 75,
+      modalAuctionPrice: 2340,
+      interstateLogistics: 330,
+      terminalLandedPrice: 2670,
+    },
+  },
+  {
     id: 'lot-vashi-onion',
     commodity: 'Onion',
     variety: 'Red Graded Medium',
@@ -110,6 +157,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 2640,
     change24hPct: 3.1,
     arrivalsQtl: 12850,
+    defaultDistanceKm: 185,
+    mandiFeePct: 1.5,
+    hamaliPerQtl: 42,
     updatedAgo: '24 mins ago',
     corridorId: 'corridor-onion-nashik',
     history7d: [
@@ -146,6 +196,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 3210,
     change24hPct: 1.9,
     arrivalsQtl: 9420,
+    defaultDistanceKm: 46,
+    mandiFeePct: 1.2,
+    hamaliPerQtl: 22,
     updatedAgo: '31 mins ago',
     corridorId: 'corridor-wheat-mp',
     history7d: [
@@ -182,6 +235,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 2545,
     change24hPct: 0.8,
     arrivalsQtl: 22600,
+    defaultDistanceKm: 28,
+    mandiFeePct: 1.5,
+    hamaliPerQtl: 24,
     updatedAgo: '14 mins ago',
     corridorId: 'corridor-wheat-mp',
     history7d: [
@@ -204,6 +260,45 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     },
   },
   {
+    id: 'lot-karnal-rice',
+    commodity: 'Rice (Paddy)',
+    variety: 'Pusa Basmati 1509',
+    category: 'Cereals & Pulses',
+    mandi: 'Karnal New Grain Yard',
+    district: 'Karnal',
+    state: 'Haryana',
+    grade: 'Grade A Long Slender',
+    moistureSpec: 'Max 13.0% H2O',
+    minPrice: 3180,
+    maxPrice: 3690,
+    modalPrice: 3480,
+    change24hPct: 2.2,
+    arrivalsQtl: 18750,
+    defaultDistanceKm: 35,
+    mandiFeePct: 1.5,
+    hamaliPerQtl: 25,
+    updatedAgo: '16 mins ago',
+    corridorId: 'corridor-wheat-mp',
+    history7d: [
+      { day: '18 Oct', modal: 3340, arrivals: 20500 },
+      { day: '19 Oct', modal: 3360, arrivals: 20100 },
+      { day: '20 Oct', modal: 3380, arrivals: 19800 },
+      { day: '21 Oct', modal: 3395, arrivals: 19600 },
+      { day: '22 Oct', modal: 3410, arrivals: 19300 },
+      { day: '23 Oct', modal: 3405, arrivals: 19400 },
+      { day: '24 Oct', modal: 3480, arrivals: 18750 },
+    ],
+    supplyChain: {
+      farmgateNet: 3190,
+      gradingPackaging: 80,
+      localFreight: 110,
+      mandiCessCommission: 100,
+      modalAuctionPrice: 3480,
+      interstateLogistics: 290,
+      terminalLandedPrice: 3770,
+    },
+  },
+  {
     id: 'lot-indore-soybean',
     commodity: 'Soybean',
     variety: 'Yellow JS-9560',
@@ -218,6 +313,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 4710,
     change24hPct: 2.4,
     arrivalsQtl: 19800,
+    defaultDistanceKm: 78,
+    mandiFeePct: 1.2,
+    hamaliPerQtl: 28,
     updatedAgo: '12 mins ago',
     corridorId: 'corridor-soybean-malwa',
     history7d: [
@@ -254,6 +352,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 4625,
     change24hPct: -1.1,
     arrivalsQtl: 15300,
+    defaultDistanceKm: 54,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 25,
     updatedAgo: '39 mins ago',
     corridorId: 'corridor-soybean-malwa',
     history7d: [
@@ -290,6 +391,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 2080,
     change24hPct: 6.1,
     arrivalsQtl: 11200,
+    defaultDistanceKm: 32,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 32,
     updatedAgo: '9 mins ago',
     corridorId: 'corridor-tomato-kolar',
     history7d: [
@@ -312,6 +416,45 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     },
   },
   {
+    id: 'lot-agra-potato',
+    commodity: 'Potato',
+    variety: 'Kufri Jyoti Cold-Store',
+    category: 'Vegetables',
+    mandi: 'Agra Sikandra APMC',
+    district: 'Agra',
+    state: 'Uttar Pradesh',
+    grade: 'FAQ 45mm+ Table',
+    moistureSpec: 'Dry Brushed',
+    minPrice: 1340,
+    maxPrice: 1760,
+    modalPrice: 1580,
+    change24hPct: -1.6,
+    arrivalsQtl: 24300,
+    defaultDistanceKm: 25,
+    mandiFeePct: 1.5,
+    hamaliPerQtl: 20,
+    updatedAgo: '29 mins ago',
+    corridorId: 'corridor-tomato-kolar',
+    history7d: [
+      { day: '18 Oct', modal: 1640, arrivals: 21800 },
+      { day: '19 Oct', modal: 1630, arrivals: 22200 },
+      { day: '20 Oct', modal: 1620, arrivals: 22900 },
+      { day: '21 Oct', modal: 1615, arrivals: 23100 },
+      { day: '22 Oct', modal: 1610, arrivals: 23500 },
+      { day: '23 Oct', modal: 1605, arrivals: 23800 },
+      { day: '24 Oct', modal: 1580, arrivals: 24300 },
+    ],
+    supplyChain: {
+      farmgateNet: 1320,
+      gradingPackaging: 85,
+      localFreight: 95,
+      mandiCessCommission: 80,
+      modalAuctionPrice: 1580,
+      interstateLogistics: 260,
+      terminalLandedPrice: 1840,
+    },
+  },
+  {
     id: 'lot-kalaburagi-tur',
     commodity: 'Tur (Arhar)',
     variety: 'Maruti Red Whole',
@@ -326,6 +469,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 9740,
     change24hPct: 1.5,
     arrivalsQtl: 6840,
+    defaultDistanceKm: 52,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 25,
     updatedAgo: '27 mins ago',
     corridorId: 'corridor-tur-deccan',
     history7d: [
@@ -362,6 +508,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 6480,
     change24hPct: -0.9,
     arrivalsQtl: 8150,
+    defaultDistanceKm: 48,
+    mandiFeePct: 1.6,
+    hamaliPerQtl: 24,
     updatedAgo: '42 mins ago',
     corridorId: 'corridor-tur-deccan',
     history7d: [
@@ -384,6 +533,45 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     },
   },
   {
+    id: 'lot-guntur-chilli',
+    commodity: 'Red Chilli',
+    variety: 'Teja S17 Dry Stemless',
+    category: 'Oilseeds & Spices',
+    mandi: 'Guntur Mirchi Yard',
+    district: 'Guntur',
+    state: 'Andhra Pradesh',
+    grade: 'Export ASTA Color',
+    moistureSpec: 'Max 10.0% H2O',
+    minPrice: 15800,
+    maxPrice: 18400,
+    modalPrice: 17250,
+    change24hPct: 2.9,
+    arrivalsQtl: 9120,
+    defaultDistanceKm: 64,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 38,
+    updatedAgo: '15 mins ago',
+    corridorId: 'corridor-soybean-malwa',
+    history7d: [
+      { day: '18 Oct', modal: 16450, arrivals: 10400 },
+      { day: '19 Oct', modal: 16600, arrivals: 10100 },
+      { day: '20 Oct', modal: 16720, arrivals: 9800 },
+      { day: '21 Oct', modal: 16690, arrivals: 9950 },
+      { day: '22 Oct', modal: 16810, arrivals: 9600 },
+      { day: '23 Oct', modal: 16760, arrivals: 9700 },
+      { day: '24 Oct', modal: 17250, arrivals: 9120 },
+    ],
+    supplyChain: {
+      farmgateNet: 16410,
+      gradingPackaging: 240,
+      localFreight: 260,
+      mandiCessCommission: 340,
+      modalAuctionPrice: 17250,
+      interstateLogistics: 520,
+      terminalLandedPrice: 17770,
+    },
+  },
+  {
     id: 'lot-nizamabad-turmeric',
     commodity: 'Turmeric',
     variety: 'Polished Finger',
@@ -398,6 +586,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 13680,
     change24hPct: 3.4,
     arrivalsQtl: 4920,
+    defaultDistanceKm: 58,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 32,
     updatedAgo: '21 mins ago',
     corridorId: 'corridor-soybean-malwa',
     history7d: [
@@ -434,6 +625,9 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
     modalPrice: 7490,
     change24hPct: 1.2,
     arrivalsQtl: 14100,
+    defaultDistanceKm: 45,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 26,
     updatedAgo: '35 mins ago',
     corridorId: 'corridor-soybean-malwa',
     history7d: [
@@ -460,17 +654,19 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
 export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
   {
     id: 'corridor-onion-nashik',
-    label: 'Onion — Nashik to Mumbai Terminal Corridor',
+    label: 'Onion — Nashik Local vs. Lasalgaon vs. Vashi Terminal',
     commodity: 'Onion (Red Nashik Summer)',
     originCluster: 'Niphad / Chandwad Farmgate Cluster, MH',
     defaultLotQtl: 60,
+    defaultPackagingPerQtl: 45,
     defaultFreightPerKmQtl: 1.45,
     defaultShrinkagePctPer100Km: 0.9,
     mandis: [
       {
         id: 'm1',
         name: 'Chandwad Sub-Yard',
-        tierLabel: 'Local Taluka Mandi',
+        commodityLabel: 'Onion (FAQ)',
+        tierLabel: 'Market A · Local Taluka Yard',
         distanceKm: 14,
         modalPriceQtl: 2110,
         mandiFeePct: 1.0,
@@ -479,7 +675,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 'm2',
         name: 'Lasalgaon APMC',
-        tierLabel: 'District Auction Hub',
+        commodityLabel: 'Onion (FAQ 55mm+)',
+        tierLabel: 'Market B · District Auction Hub',
         distanceKm: 38,
         modalPriceQtl: 2280,
         mandiFeePct: 1.0,
@@ -488,7 +685,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 'm3',
         name: 'Vashi Terminal APMC',
-        tierLabel: 'Metro Wholesale Terminal',
+        commodityLabel: 'Onion (Grade A)',
+        tierLabel: 'Market C · Metro Wholesale Terminal',
         distanceKm: 185,
         modalPriceQtl: 2640,
         mandiFeePct: 1.5,
@@ -498,17 +696,19 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
   },
   {
     id: 'corridor-soybean-malwa',
-    label: 'Soybean — Malwa Solvent & Mill Corridor',
+    label: 'Soybean — Sonkatch Local vs. Dewas vs. Indore Yard',
     commodity: 'Soybean (Yellow <12% Moisture)',
     originCluster: 'Sonkatch / Dewas FPO Cluster, MP',
     defaultLotQtl: 90,
+    defaultPackagingPerQtl: 35,
     defaultFreightPerKmQtl: 1.25,
     defaultShrinkagePctPer100Km: 0.35,
     mandis: [
       {
         id: 's1',
         name: 'Sonkatch Local Yard',
-        tierLabel: 'Local Sub-Mandi',
+        commodityLabel: 'Soybean (FAQ)',
+        tierLabel: 'Market A · Local Sub-Mandi',
         distanceKm: 11,
         modalPriceQtl: 4490,
         mandiFeePct: 1.2,
@@ -517,7 +717,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 's2',
         name: 'Dewas Grain APMC',
-        tierLabel: 'District Crushers Hub',
+        commodityLabel: 'Soybean (Solvent)',
+        tierLabel: 'Market B · District Crushers Hub',
         distanceKm: 42,
         modalPriceQtl: 4635,
         mandiFeePct: 1.2,
@@ -526,7 +727,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 's3',
         name: 'Indore Laxmibai Nagar',
-        tierLabel: 'Regional Terminal Yard',
+        commodityLabel: 'Soybean (JS-9560)',
+        tierLabel: 'Market C · Regional Terminal Yard',
         distanceKm: 78,
         modalPriceQtl: 4710,
         mandiFeePct: 1.2,
@@ -536,17 +738,19 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
   },
   {
     id: 'corridor-wheat-mp',
-    label: 'Wheat — Central MP Sharbati Milling Corridor',
+    label: 'Wheat — Ashta Local vs. Sehore Hub vs. Bhopal Terminal',
     commodity: 'Wheat (Sharbati Grade A)',
     originCluster: 'Ashta Farmgate Cluster, MP',
     defaultLotQtl: 100,
+    defaultPackagingPerQtl: 30,
     defaultFreightPerKmQtl: 1.2,
     defaultShrinkagePctPer100Km: 0.25,
     mandis: [
       {
         id: 'w1',
         name: 'Ashta Mandi',
-        tierLabel: 'Local Taluka Yard',
+        commodityLabel: 'Wheat (FAQ)',
+        tierLabel: 'Market A · Local Taluka Yard',
         distanceKm: 12,
         modalPriceQtl: 3040,
         mandiFeePct: 1.2,
@@ -555,7 +759,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 'w2',
         name: 'Sehore APMC',
-        tierLabel: 'Primary Sharbati Hub',
+        commodityLabel: 'Wheat (Sharbati)',
+        tierLabel: 'Market B · Primary Sharbati Hub',
         distanceKm: 46,
         modalPriceQtl: 3210,
         mandiFeePct: 1.2,
@@ -564,7 +769,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 'w3',
         name: 'Bhopal Karond Terminal',
-        tierLabel: 'State Roller Mill Hub',
+        commodityLabel: 'Wheat (Roller Mill)',
+        tierLabel: 'Market C · State Roller Mill Hub',
         distanceKm: 88,
         modalPriceQtl: 3255,
         mandiFeePct: 1.5,
@@ -574,17 +780,19 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
   },
   {
     id: 'corridor-tomato-kolar',
-    label: 'Tomato — South Karnataka Perishable Corridor',
+    label: 'Tomato — Mulbagal vs. Kolar APMC vs. Chennai Koyambedu',
     commodity: 'Tomato (Hybrid 25kg Crate)',
     originCluster: 'Mulbagal Horti Cluster, KA',
     defaultLotQtl: 45,
+    defaultPackagingPerQtl: 65,
     defaultFreightPerKmQtl: 1.85,
     defaultShrinkagePctPer100Km: 1.6,
     mandis: [
       {
         id: 't1',
         name: 'Mulbagal Sub-Yard',
-        tierLabel: 'Local Assembly Yard',
+        commodityLabel: 'Tomato (Crate)',
+        tierLabel: 'Market A · Local Assembly Yard',
         distanceKm: 9,
         modalPriceQtl: 1890,
         mandiFeePct: 1.0,
@@ -593,7 +801,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 't2',
         name: 'Kolar APMC',
-        tierLabel: 'Primary Horti Auction',
+        commodityLabel: 'Tomato (Breaker-Red)',
+        tierLabel: 'Market B · Primary Horti Auction',
         distanceKm: 32,
         modalPriceQtl: 2080,
         mandiFeePct: 1.0,
@@ -602,7 +811,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 't3',
         name: 'Chennai Koyambedu',
-        tierLabel: 'Interstate Metro Market',
+        commodityLabel: 'Tomato (Grade A)',
+        tierLabel: 'Market C · Interstate Metro Market',
         distanceKm: 235,
         modalPriceQtl: 2490,
         mandiFeePct: 2.0,
@@ -612,17 +822,19 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
   },
   {
     id: 'corridor-tur-deccan',
-    label: 'Tur (Arhar) — Deccan Dal Mill Corridor',
+    label: 'Tur (Arhar) — Sedam Local vs. Kalaburagi vs. Solapur',
     commodity: 'Tur / Arhar (Red Whole)',
     originCluster: 'Sedam / Jewargi Pulse Cluster, KA',
     defaultLotQtl: 80,
+    defaultPackagingPerQtl: 40,
     defaultFreightPerKmQtl: 1.3,
     defaultShrinkagePctPer100Km: 0.3,
     mandis: [
       {
         id: 'p1',
         name: 'Sedam Local Yard',
-        tierLabel: 'Taluka Aggregation Yard',
+        commodityLabel: 'Tur (FAQ)',
+        tierLabel: 'Market A · Taluka Aggregation Yard',
         distanceKm: 15,
         modalPriceQtl: 9480,
         mandiFeePct: 1.0,
@@ -631,7 +843,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 'p2',
         name: 'Kalaburagi APMC',
-        tierLabel: 'GI Dal Mill Cluster',
+        commodityLabel: 'Tur (Maruti Red)',
+        tierLabel: 'Market B · GI Dal Mill Cluster',
         distanceKm: 52,
         modalPriceQtl: 9740,
         mandiFeePct: 1.0,
@@ -640,7 +853,8 @@ export const ARBITRAGE_CORRIDORS: ArbitrageCorridor[] = [
       {
         id: 'p3',
         name: 'Solapur Terminal Yard',
-        tierLabel: 'Interstate Pulse Hub',
+        commodityLabel: 'Tur (Sortex Mill)',
+        tierLabel: 'Market C · Interstate Pulse Hub',
         distanceKm: 128,
         modalPriceQtl: 9860,
         mandiFeePct: 1.2,

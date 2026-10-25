@@ -40,6 +40,8 @@ export default function App() {
     }
   });
 
+  const [externalSearchQuery, setExternalSearchQuery] = useState<string>('');
+  const [comparedIds, setComparedIds] = useState<string[]>([]);
   const [selectedCorridorId, setSelectedCorridorId] = useState<string>(
     ARBITRAGE_CORRIDORS[0].id
   );
@@ -68,6 +70,24 @@ export default function App() {
     );
   };
 
+  const handleToggleCompare = (id: string) => {
+    setComparedIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id);
+      }
+      if (prev.length >= 3) {
+        return [...prev.slice(1), id];
+      }
+      return [...prev, id];
+    });
+  };
+
+  const handleJumpToCompare = () => {
+    document
+      .getElementById('comparison-calculator')
+      ?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const handleAddFieldQuote = (newRecord: MandiLotRecord) => {
     setCustomRecords((prev) => [newRecord, ...prev]);
   };
@@ -76,17 +96,30 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       <Navbar />
       <main className="flex-1">
-        <HeroSection />
+        <HeroSection onQuickSearch={(q) => setExternalSearchQuery(q)} />
         <MandiBoard
           records={allRecords}
+          externalSearchQuery={externalSearchQuery}
           savedIds={savedIds}
+          comparedIds={comparedIds}
           onToggleSave={handleToggleSave}
+          onToggleCompare={handleToggleCompare}
+          onClearCompare={() => setComparedIds([])}
+          onJumpToCompare={handleJumpToCompare}
           onAddFieldQuote={handleAddFieldQuote}
-          onSelectCorridor={(corridorId) => setSelectedCorridorId(corridorId)}
+          onSelectCorridor={(corridorId) => {
+            setComparedIds([]);
+            setSelectedCorridorId(corridorId);
+          }}
         />
         <ArbitrageCalculator
+          allRecords={allRecords}
+          comparedLotIds={comparedIds}
           selectedCorridorId={selectedCorridorId}
-          onCorridorChange={setSelectedCorridorId}
+          onCorridorChange={(corridorId) => {
+            setComparedIds([]);
+            setSelectedCorridorId(corridorId);
+          }}
         />
         <SupplyChainSection />
         <AlertSubscription />
