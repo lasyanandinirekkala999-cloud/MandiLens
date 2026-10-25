@@ -12,12 +12,12 @@ interface AuthModalProps {
 }
 
 const REGION_CLUSTERS = [
+  'Andhra Pradesh — Anantapur / Guntur',
+  'Karnataka — Kolar / Kalaburagi',
   'Maharashtra — Nashik / Pune',
   'Madhya Pradesh — Indore / Sehore',
-  'Karnataka — Kolar / Kalaburagi',
   'Punjab & Haryana — Grain Belt',
   'Gujarat & Rajasthan — West Corridor',
-  'Andhra Pradesh & Telangana — Spice Corridor',
 ];
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
@@ -122,13 +122,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-medium text-slate-500">
-              {user ? 'Authenticated Member Workspace' : 'MandiLens Account Access'}
+              {user ? 'MandILens Farmer & FPO Profile' : 'MandILens Profile Access'}
             </p>
             <h2
               id="mandilens-auth-title"
               className="font-display text-lg font-bold text-slate-900 mt-0.5"
             >
-              {user ? 'Supply Chain Profile & Cloud Sync' : 'Sign in to MandiLens'}
+              {user ? 'Farmer Profile & Cloud Sync' : 'Sign in to MandILens'}
             </h2>
           </div>
 

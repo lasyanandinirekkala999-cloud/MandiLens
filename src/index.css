@@ -9,11 +9,14 @@
 @layer base {
   body {
     font-family: var(--font-sans);
-    color: #0f172a;
-    background-color: #f8fafc;
+    color: #161a18;
+    background-color: #f7f7f2;
   }
 
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     text-wrap: balance;
   }
@@ -37,7 +40,7 @@
 @media print {
   body {
     background-color: #ffffff !important;
-    color: #0f172a !important;
+    color: #161a18 !important;
   }
 
   .no-print {

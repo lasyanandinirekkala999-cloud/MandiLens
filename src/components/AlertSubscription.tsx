@@ -9,8 +9,8 @@ interface AlertSubscriptionProps {
 export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth }) => {
   const { user, profile, addCloudSubscription } = useAuth();
   const [role, setRole] = useState<SupplyChainRole>('FPO / Farmer Collective');
-  const [commodity, setCommodity] = useState('Onion & Horticulture');
-  const [region, setRegion] = useState('Maharashtra — Nashik / Pune');
+  const [commodity, setCommodity] = useState('Tomato, Onion & Horticulture');
+  const [region, setRegion] = useState('Andhra Pradesh — Anantapur / Guntur');
   const [contact, setContact] = useState('');
   const [organization, setOrganization] = useState('');
   const [error, setError] = useState('');
@@ -73,7 +73,7 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
 
   return (
     <>
-      <section id="alerts" className="py-14 lg:py-20 bg-slate-50 border-b border-slate-200">
+      <section id="alerts" className="py-14 lg:py-20 bg-[#F7F7F2] border-b border-[#E2E4DD] no-print">
         <div className="max-w-7xl mx-auto px-6">
           <div className="bg-white border border-slate-200 rounded-xl p-6 sm:p-10 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             <div className="lg:col-span-6">
@@ -179,7 +179,9 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
                         onChange={(e) => setCommodity(e.target.value)}
                         className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-green-800"
                       >
-                        <option value="Onion & Horticulture">Onion &amp; Horticulture</option>
+                        <option value="Tomato, Onion & Horticulture">
+                          Tomato, Onion &amp; Horticulture
+                        </option>
                         <option value="Wheat & Milling Cereals">Wheat &amp; Milling Cereals</option>
                         <option value="Soybean & Oilseeds">Soybean &amp; Oilseeds</option>
                         <option value="Tur, Chana & Pulses">Tur, Chana &amp; Pulses</option>
@@ -222,6 +224,9 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
                         onChange={(e) => setRegion(e.target.value)}
                         className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-green-800"
                       >
+                        <option value="Andhra Pradesh — Anantapur / Guntur">
+                          Andhra Pradesh — Anantapur / Guntur
+                        </option>
                         <option value="Maharashtra — Nashik / Pune">
                           Maharashtra — Nashik / Pune
                         </option>
@@ -236,9 +241,6 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
                         </option>
                         <option value="Gujarat & Rajasthan — West Corridor">
                           Gujarat &amp; Rajasthan — West Corridor
-                        </option>
-                        <option value="Andhra Pradesh & Telangana — Spice Corridor">
-                          Andhra Pradesh &amp; Telangana — Spice Corridor
                         </option>
                       </select>
                     </div>
@@ -296,39 +298,39 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
       </section>
 
       {/* Quiet Footer */}
-      <footer className="bg-white py-10">
+      <footer className="bg-white py-10 no-print">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div>
             <a
               href="#"
-              className="font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap"
+              className="font-display text-lg font-bold tracking-tight text-[#0F2F1E] whitespace-nowrap"
             >
-              MandiLens
+              Mand<span className="text-[#16A34A]">I</span>Lens
             </a>
-            <p className="mt-1 text-xs text-slate-500 max-w-md">
-              Transparent agricultural wholesale market rates and freight-adjusted supply chain
-              intelligence for producer collectives and institutional buyers.
+            <p className="mt-1 text-xs text-[#4A524D] max-w-md">
+              From Market Price to Smart Selling Decision — AI-powered agricultural market
+              intelligence helping farmers maximize net profit.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-slate-600">
-            <a href="#price-dashboard" className="hover:text-slate-900 whitespace-nowrap">
-              Price Dashboard
+          <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-[#4A524D]">
+            <a href="#dashboard" className="hover:text-[#0F2F1E] whitespace-nowrap">
+              Dashboard
             </a>
-            <a href="#comparison-calculator" className="hover:text-slate-900 whitespace-nowrap">
-              Comparison Calculator
+            <a href="#markets" className="hover:text-[#0F2F1E] whitespace-nowrap">
+              Markets
             </a>
-            <a href="#database-security" className="hover:text-slate-900 whitespace-nowrap">
-              Dispatch &amp; Security
+            <a href="#price-intelligence" className="hover:text-[#0F2F1E] whitespace-nowrap">
+              Price Intelligence
             </a>
-            <a href="#supply-chain" className="hover:text-slate-900 whitespace-nowrap">
-              Supply Chain
+            <a href="#ai-advisor" className="hover:text-[#0F2F1E] whitespace-nowrap">
+              AI Advisor
             </a>
-            <a href="#case-studies" className="hover:text-slate-900 whitespace-nowrap">
-              Case Studies
+            <a href="#reports" className="hover:text-[#0F2F1E] whitespace-nowrap">
+              Reports
             </a>
-            <span className="text-slate-400 whitespace-nowrap">
-              © {new Date().getFullYear()} MandiLens Agritech
+            <span className="text-[#8A928C] whitespace-nowrap">
+              © {new Date().getFullYear()} MandILens AgriTech
             </span>
           </div>
         </div>

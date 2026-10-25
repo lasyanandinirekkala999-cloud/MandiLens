@@ -349,22 +349,22 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
   const maxChartArrivals = Math.max(...chartPoints.map((d) => d.arrivals), 1);
 
   return (
-    <section id="price-dashboard" className="py-12 lg:py-16 border-b border-slate-200 bg-slate-50">
+    <section id="markets" className="py-12 lg:py-16 border-b border-[#E2E4DD] bg-white no-print">
       <div className="max-w-7xl mx-auto px-6">
         {/* Section Heading & Primary Toolbar */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-6">
           <div>
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-[#4A524D] mb-2">
               <span>Live Wholesale Clearing Feed</span>
               <span aria-hidden="true">·</span>
               <span>Select up to 3 markets to compare net payouts</span>
             </div>
-            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              Searchable Mandi Price Dashboard
+            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#161A18]">
+              Searchable Mandi Markets &amp; Clearing Rates
             </h2>
-            <p className="mt-1.5 text-sm sm:text-base text-slate-600 max-w-2xl">
+            <p className="mt-1.5 text-sm sm:text-base text-[#4A524D] max-w-2xl">
               Search by crop, variety, APMC yard, district, or state. Inspect 7-day arrival trends
-              or add any market directly to the comparison calculator below.
+              or add any market directly to the multi-mandi profit simulator below.
             </p>
           </div>
 

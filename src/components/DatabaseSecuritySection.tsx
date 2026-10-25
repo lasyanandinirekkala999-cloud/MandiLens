@@ -39,11 +39,11 @@ export const DatabaseSecuritySection: React.FC<DatabaseSecuritySectionProps> = (
 
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all');
   const [showOrderForm, setShowOrderForm] = useState(false);
-  const [commodity, setCommodity] = useState('Onion (FAQ 55mm+)');
-  const [originCluster, setOriginCluster] = useState('Niphad Farmgate Cluster, MH');
-  const [destinationMandi, setDestinationMandi] = useState('Lasalgaon APMC');
-  const [quantityQtl, setQuantityQtl] = useState('90');
-  const [expectedNetPerQtl, setExpectedNetPerQtl] = useState('2185');
+  const [commodity, setCommodity] = useState('Tomato (Grade A Crate)');
+  const [originCluster, setOriginCluster] = useState('Anantapur, Andhra Pradesh');
+  const [destinationMandi, setDestinationMandi] = useState('Mandi A — Hindupur Highway APMC');
+  const [quantityQtl, setQuantityQtl] = useState('20');
+  const [expectedNetPerQtl, setExpectedNetPerQtl] = useState('2160');
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -134,7 +134,7 @@ export const DatabaseSecuritySection: React.FC<DatabaseSecuritySectionProps> = (
   return (
     <section
       id="database-security"
-      className="py-12 lg:py-16 bg-slate-50 border-b border-slate-200"
+      className="py-12 lg:py-16 bg-white border-b border-[#E2E4DD] no-print"
     >
       <div className="max-w-7xl mx-auto px-6">
         {/* Section Heading & Primary Actions */}

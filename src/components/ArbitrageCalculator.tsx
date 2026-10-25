@@ -316,7 +316,7 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
       });
       setStatusNote(`Planned dispatch to ${bestOption.name} added to Supply Chain Ledger.`);
       document
-        .getElementById('database-security')
+        .getElementById('reports')
         ?.scrollIntoView({ behavior: 'smooth' });
     } catch (err) {
       setStatusNote(err instanceof Error ? err.message : 'Unable to log dispatch order.');
@@ -346,7 +346,7 @@ export const ArbitrageCalculator: React.FC<ArbitrageCalculatorProps> = ({
   return (
     <section
       id="comparison-calculator"
-      className="py-12 lg:py-16 bg-white border-b border-slate-200"
+      className="py-12 lg:py-16 bg-[#F7F7F2] border-b border-[#E2E4DD] no-print"
     >
       <div className="max-w-7xl mx-auto px-6">
         {/* Header & Mode Switcher */}

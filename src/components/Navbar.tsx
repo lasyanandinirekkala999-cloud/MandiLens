@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, Menu, UserCheck, X } from 'lucide-react';
+import { Menu, User, UserCheck, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
@@ -14,86 +14,73 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
     profile?.displayName ||
     user?.displayName ||
     user?.email?.split('@')[0] ||
-    'Member'
+    'Farmer'
   )
     .split(' ')[0]
-    .slice(0, 16);
+    .slice(0, 14);
+
+  const navItems = [
+    { href: '#dashboard', label: 'Dashboard' },
+    { href: '#markets', label: 'Markets' },
+    { href: '#price-intelligence', label: 'Price Intelligence' },
+    { href: '#ai-advisor', label: 'AI Advisor' },
+    { href: '#reports', label: 'Reports' },
+  ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-slate-200">
+    <header className="sticky top-0 z-40 bg-[#F7F7F2]/95 backdrop-blur-sm border-b border-[#E2E4DD] no-print">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-8 px-6 h-14">
         {/* Zone 1: Single text element wordmark */}
         <a
           href="#"
-          className="font-display text-xl font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+          className="font-display text-xl font-bold tracking-tight text-[#0F2F1E] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#16A34A]"
         >
-          MandiLens
+          Mand<span className="text-[#16A34A]">I</span>Lens
         </a>
 
-        {/* Zone 2: 4 clean single-line text navigation links */}
+        {/* Zone 2: 5 concise single-line text navigation links */}
         <nav
           aria-label="Primary"
-          className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600"
+          className="hidden md:flex items-center gap-7 text-sm font-medium text-[#4A524D]"
         >
-          <a
-            href="#price-dashboard"
-            className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
-          >
-            Price Dashboard
-          </a>
-          <a
-            href="#comparison-calculator"
-            className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
-          >
-            Comparison Calculator
-          </a>
-          <a
-            href="#database-security"
-            className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
-          >
-            Dispatch &amp; Security
-          </a>
-          <a
-            href="#supply-chain"
-            className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
-          >
-            Supply Chain
-          </a>
-          <a
-            href="#case-studies"
-            className="hover:text-slate-900 hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
-          >
-            Case Studies
-          </a>
+          {navItems.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="hover:text-[#0F2F1E] hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
+            >
+              {item.label}
+            </a>
+          ))}
         </nav>
 
-        {/* Zone 3: 1 primary action (Sign In or Authenticated Account Button) */}
+        {/* Zone 3: 1 primary action (Profile) */}
         <div className="flex items-center gap-3 shrink-0">
           {!authReady ? (
             <button
               type="button"
               disabled
-              className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg whitespace-nowrap shrink-0"
+              className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-[#4A524D] bg-[#EFEFE8] rounded-lg whitespace-nowrap shrink-0"
             >
-              Checking Auth...
+              Profile
             </button>
           ) : user ? (
             <button
               type="button"
               onClick={onOpenAuth}
-              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#0F2F1E] rounded-lg hover:bg-[#16422B] transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F2F1E]"
             >
-              <UserCheck className="w-3.5 h-3.5 text-green-400" />
-              <span>Account · {shortName}</span>
+              <UserCheck className="w-3.5 h-3.5 text-[#4ADE80]" />
+              <span>Profile · {shortName}</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={onOpenAuth}
-              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-800"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#0F2F1E] rounded-lg hover:bg-[#16422B] transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F2F1E]"
             >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Sign In</span>
+              <User className="w-3.5 h-3.5" />
+              <span>Profile</span>
             </button>
           )}
 
@@ -102,7 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             aria-expanded={mobileMenuOpen}
             aria-label="Toggle navigation menu"
-            className="md:hidden inline-flex items-center justify-center w-10 h-10 text-slate-700 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors duration-150"
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 text-[#161A18] hover:bg-[#EFEFE8] rounded-lg transition-colors duration-150"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -111,62 +98,37 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
 
       {/* Mobile navigation drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-6 py-4 space-y-3">
-          <nav className="flex flex-col space-y-2.5 text-sm font-medium text-slate-700">
-            <a
-              href="#price-dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              className="py-1.5 hover:text-slate-900 whitespace-nowrap"
-            >
-              Price Dashboard
-            </a>
-            <a
-              href="#comparison-calculator"
-              onClick={() => setMobileMenuOpen(false)}
-              className="py-1.5 hover:text-slate-900 whitespace-nowrap"
-            >
-              Comparison Calculator
-            </a>
-            <a
-              href="#database-security"
-              onClick={() => setMobileMenuOpen(false)}
-              className="py-1.5 hover:text-slate-900 whitespace-nowrap"
-            >
-              Dispatch &amp; Security
-            </a>
-            <a
-              href="#supply-chain"
-              onClick={() => setMobileMenuOpen(false)}
-              className="py-1.5 hover:text-slate-900 whitespace-nowrap"
-            >
-              Supply Chain
-            </a>
-            <a
-              href="#case-studies"
-              onClick={() => setMobileMenuOpen(false)}
-              className="py-1.5 hover:text-slate-900 whitespace-nowrap"
-            >
-              Case Studies
-            </a>
+        <div className="md:hidden border-t border-[#E2E4DD] bg-[#F7F7F2] px-6 py-4 space-y-3">
+          <nav className="flex flex-col space-y-2 text-sm font-medium text-[#161A18]">
+            {navItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-1.5 hover:text-[#15803D] whitespace-nowrap"
+              >
+                {item.label}
+              </a>
+            ))}
           </nav>
-          <div className="pt-2 border-t border-slate-100">
+          <div className="pt-2 border-t border-[#E2E4DD]">
             <button
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
                 onOpenAuth();
               }}
-              className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 transition-colors whitespace-nowrap"
+              className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-[#0F2F1E] rounded-lg hover:bg-[#16422B] transition-colors whitespace-nowrap"
             >
               {user ? (
                 <>
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Account · {shortName}</span>
+                  <UserCheck className="w-3.5 h-3.5 text-[#4ADE80]" />
+                  <span>Profile · {shortName}</span>
                 </>
               ) : (
                 <>
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>Sign In with Google</span>
+                  <User className="w-3.5 h-3.5" />
+                  <span>Profile · Sign In</span>
                 </>
               )}
             </button>
