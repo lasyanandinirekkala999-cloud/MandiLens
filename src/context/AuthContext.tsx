@@ -904,8 +904,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           'Browser blocked the sign-in popup. Allow popups for this site and click Continue again.'
         );
       } else if (code === 'auth/unauthorized-domain') {
+        const host =
+          typeof window !== 'undefined' ? window.location.hostname : 'this production domain';
         setAuthError(
-          'This preview domain is not yet allowlisted in Firebase Auth Authorized Domains.'
+          `Add "${host}" under Firebase Console → Authentication → Settings → Authorized domains to enable Google sign-in on this live URL.`
         );
       } else {
         setAuthError(err instanceof Error ? err.message : 'Unable to sign in with Google.');
