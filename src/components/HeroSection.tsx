@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { Calculator, Search } from 'lucide-react';
+import { Calculator, LogIn, Search, UserCheck } from 'lucide-react';
 import { ResilientImage } from './ResilientImage';
+import { useAuth } from '../context/AuthContext';
 import heroMandiAuctionImg from '../assets/images/hero_mandi_auction_1792858424611.jpg';
 
 interface HeroSectionProps {
   onQuickSearch: (query: string) => void;
+  onOpenAuth: () => void;
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({ onQuickSearch }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({
+  onQuickSearch,
+  onOpenAuth,
+}) => {
   const [heroInput, setHeroInput] = useState('');
+  const { user, profile } = useAuth();
 
   const handleHeroSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,36 +76,72 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onQuickSearch }) => {
               </form>
             </div>
 
-            <div className="mt-6 pt-5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                <span>Quick lookup:</span>
-                {['Onion', 'Wheat', 'Soybean', 'Tomato', 'Red Chilli'].map((crop, idx) => (
-                  <React.Fragment key={crop}>
-                    {idx > 0 && <span aria-hidden="true">·</span>}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHeroInput(crop);
-                        onQuickSearch(crop);
-                        document
-                          .getElementById('price-dashboard')
-                          ?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="font-medium text-slate-700 hover:text-green-800 hover:underline underline-offset-2 whitespace-nowrap"
-                    >
-                      {crop}
-                    </button>
-                  </React.Fragment>
-                ))}
+            <div className="mt-6 pt-5 border-t border-slate-100 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span>Quick lookup:</span>
+                  {['Onion', 'Wheat', 'Soybean', 'Tomato', 'Red Chilli'].map((crop, idx) => (
+                    <React.Fragment key={crop}>
+                      {idx > 0 && <span aria-hidden="true">·</span>}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeroInput(crop);
+                          onQuickSearch(crop);
+                          document
+                            .getElementById('price-dashboard')
+                            ?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="font-medium text-slate-700 hover:text-green-800 hover:underline underline-offset-2 whitespace-nowrap"
+                      >
+                        {crop}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+
+                <a
+                  href="#comparison-calculator"
+                  className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-900 hover:text-green-800 transition-colors whitespace-nowrap shrink-0"
+                >
+                  <Calculator className="w-4 h-4 text-green-800" />
+                  <span>Open Comparison Calculator</span>
+                </a>
               </div>
 
-              <a
-                href="#comparison-calculator"
-                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-900 hover:text-green-800 transition-colors whitespace-nowrap shrink-0"
-              >
-                <Calculator className="w-4 h-4 text-green-800" />
-                <span>Open Comparison Calculator</span>
-              </a>
+              {/* Authenticated Status / Sign-In Access Strip */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-600">
+                {user ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <UserCheck className="w-3.5 h-3.5 text-green-800 shrink-0" />
+                    <span className="font-semibold text-slate-900">
+                      {profile?.displayName || user.displayName || user.email}
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <span>{profile?.supplyChainRole || 'Verified Member'}</span>
+                    <span aria-hidden="true">·</span>
+                    <button
+                      type="button"
+                      onClick={onOpenAuth}
+                      className="font-semibold text-green-800 hover:underline whitespace-nowrap"
+                    >
+                      Manage Cloud Profile
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>Have an FPO or buyer account?</span>
+                    <button
+                      type="button"
+                      onClick={onOpenAuth}
+                      className="inline-flex items-center gap-1 font-semibold text-green-800 hover:underline whitespace-nowrap"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      <span>Sign in with Google to sync watchlists &amp; field quotes</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

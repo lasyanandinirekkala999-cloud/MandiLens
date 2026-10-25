@@ -1,0 +1,289 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Non-PII supply chain profile preferences for an authenticated MandiLens user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the profile owner."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Display name of the grower, FPO manager, or buyer."
+        },
+        "supplyChainRole": {
+          "type": "string",
+          "maxLength": 50,
+          "enum": [
+            "FPO / Farmer Collective",
+            "Independent Grower",
+            "Commodity Buyer / Processor",
+            "Cold Chain & Transport Fleet"
+          ],
+          "description": "Primary role in the agricultural supply chain."
+        },
+        "regionCluster": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Default APMC mandi cluster for the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of profile creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of latest profile update."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "supplyChainRole",
+        "regionCluster",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII record storing the authenticated user's verified email address.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the owning user."
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 160,
+          "description": "Verified account email address."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when private info was synced."
+        }
+      },
+      "required": ["ownerId", "email", "updatedAt"]
+    },
+    "WatchlistItem": {
+      "title": "WatchlistItem",
+      "description": "A bookmarked mandi lot in the user's persistent watchlist subcollection.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the watchlist owner."
+        },
+        "lotId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Identifier of the saved mandi lot."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when bookmarked."
+        }
+      },
+      "required": ["ownerId", "lotId", "createdAt"]
+    },
+    "AlertSubscriptionDoc": {
+      "title": "AlertSubscriptionDoc",
+      "description": "Daily morning mandi clearing price digest subscription owned by an authenticated user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the subscriber."
+        },
+        "organization": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100,
+          "description": "Name of FPO, farm, or buying enterprise."
+        },
+        "supplyChainRole": {
+          "type": "string",
+          "maxLength": 50,
+          "enum": [
+            "FPO / Farmer Collective",
+            "Independent Grower",
+            "Commodity Buyer / Processor",
+            "Cold Chain & Transport Fleet"
+          ],
+          "description": "Subscriber role."
+        },
+        "commodityGroup": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Target commodity category."
+        },
+        "regionCluster": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Target state and mandi corridor."
+        },
+        "contact": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 160,
+          "description": "Validated mobile number or email for alert delivery."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of subscription creation."
+        }
+      },
+      "required": [
+        "ownerId",
+        "organization",
+        "supplyChainRole",
+        "commodityGroup",
+        "regionCluster",
+        "contact",
+        "createdAt"
+      ]
+    },
+    "FieldQuoteDoc": {
+      "title": "FieldQuoteDoc",
+      "description": "User-logged field mandi auction quote persisted in Firestore.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID of the authenticated user who logged the quote."
+        },
+        "commodity": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "description": "Commodity name."
+        },
+        "variety": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Crop variety specification."
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 40,
+          "enum": ["Cereals & Pulses", "Vegetables", "Oilseeds & Spices"],
+          "description": "Commodity classification."
+        },
+        "mandi": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "APMC or sub-yard name."
+        },
+        "district": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "description": "District name."
+        },
+        "state": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50,
+          "description": "State name."
+        },
+        "grade": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50,
+          "description": "Lot quality grade."
+        },
+        "modalPrice": {
+          "type": "number",
+          "description": "Modal clearing price in INR per quintal."
+        },
+        "minPrice": {
+          "type": "number",
+          "description": "Minimum clearing price in INR per quintal."
+        },
+        "maxPrice": {
+          "type": "number",
+          "description": "Maximum clearing price in INR per quintal."
+        },
+        "arrivalsQtl": {
+          "type": "number",
+          "description": "Daily arrival volume in quintals."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of quote submission."
+        }
+      },
+      "required": [
+        "ownerId",
+        "commodity",
+        "variety",
+        "category",
+        "mandi",
+        "district",
+        "state",
+        "grade",
+        "modalPrice",
+        "minPrice",
+        "maxPrice",
+        "arrivalsQtl",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Authenticated user supply chain profile (non-PII)."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Split-collection PII storage for verified user email."
+    },
+    "/users/{userId}/watchlist/{lotId}": {
+      "schema": { "$ref": "#/entities/WatchlistItem" },
+      "description": "Per-user subcollection of saved mandi lots."
+    },
+    "/users/{userId}/subscriptions/{subscriptionId}": {
+      "schema": { "$ref": "#/entities/AlertSubscriptionDoc" },
+      "description": "Per-user subcollection of daily corridor alert subscriptions."
+    },
+    "/fieldQuotes/{quoteId}": {
+      "schema": { "$ref": "#/entities/FieldQuoteDoc" },
+      "description": "User-owned logged mandi field auction observations."
+    }
+  }
+}

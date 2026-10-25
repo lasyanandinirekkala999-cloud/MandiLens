@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { CropCategory, MandiLotRecord } from '../data/mandiData';
+import { useAuth } from '../context/AuthContext';
 
 interface MandiBoardProps {
   records: MandiLotRecord[];
@@ -25,6 +26,7 @@ interface MandiBoardProps {
   onJumpToCompare: () => void;
   onAddFieldQuote: (newRecord: MandiLotRecord) => void;
   onSelectCorridor: (corridorId: string) => void;
+  onOpenAuth: () => void;
 }
 
 type SortField = 'modalPrice' | 'change24hPct' | 'arrivalsQtl';
@@ -49,7 +51,9 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
   onJumpToCompare,
   onAddFieldQuote,
   onSelectCorridor,
+  onOpenAuth,
 }) => {
+  const { user, addCloudFieldQuote } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'All' | CropCategory>('All');
   const [selectedState, setSelectedState] = useState<string>('All States');
@@ -61,6 +65,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
   const [selectedLotId, setSelectedLotId] = useState<string>(records[0]?.id ?? '');
   const [activeChartIdx, setActiveChartIdx] = useState<number>(6);
   const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
 
   // Sync external search query from Hero quick search
   useEffect(() => {
@@ -227,13 +232,13 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const handleQuoteSubmit = (e: React.FormEvent) => {
+  const handleQuoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const modalNum = Number(quoteModal);
     const arrivalsNum = Number(quoteArrivals);
 
-    if (!quoteMandi.trim() || !quoteDistrict.trim()) {
-      setQuoteError('Enter both Mandi Yard name and District.');
+    if (quoteMandi.trim().length < 2 || quoteDistrict.trim().length < 2) {
+      setQuoteError('Enter both Mandi Yard name and District (minimum 2 characters).');
       return;
     }
     if (!Number.isFinite(modalNum) || modalNum < 200 || modalNum > 50000) {
@@ -247,6 +252,36 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
 
     const minP = Math.round(modalNum * 0.91);
     const maxP = Math.round(modalNum * 1.09);
+
+    if (user) {
+      setIsSubmittingQuote(true);
+      try {
+        const created = await addCloudFieldQuote({
+          commodity: quoteCommodity.trim() || 'Onion',
+          variety: quoteVariety.trim() || 'Standard FAQ',
+          category: quoteCategory,
+          mandi: quoteMandi.trim(),
+          district: quoteDistrict.trim(),
+          state: quoteState,
+          grade: 'FPO Verified Lot',
+          modalPrice: modalNum,
+          minPrice: minP,
+          maxPrice: maxP,
+          arrivalsQtl: arrivalsNum,
+        });
+        setSelectedLotId(created.id);
+        setQuoteMandi('');
+        setQuoteDistrict('');
+        setQuoteError('');
+        setShowQuoteForm(false);
+      } catch (err) {
+        setQuoteError(err instanceof Error ? err.message : 'Unable to save quote to cloud.');
+      } finally {
+        setIsSubmittingQuote(false);
+      }
+      return;
+    }
+
     const farmgate = Math.round(modalNum * 0.88);
     const grading = Math.round(modalNum * 0.035);
     const localFreight = Math.round(modalNum * 0.05);
@@ -271,7 +306,7 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
       defaultDistanceKm: 40,
       mandiFeePct: 1.0,
       hamaliPerQtl: 25,
-      updatedAgo: 'Just logged',
+      updatedAgo: 'Just logged (session)',
       corridorId:
         quoteCategory === 'Vegetables'
           ? 'corridor-onion-nashik'
@@ -491,23 +526,44 @@ export const MandiBoard: React.FC<MandiBoardProps> = ({
               </p>
             )}
 
-            <div className="mt-4 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowQuoteForm(false);
-                  setQuoteError('');
-                }}
-                className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 whitespace-nowrap"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-xs font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 transition-colors whitespace-nowrap"
-              >
-                Save Quote to Dashboard
-              </button>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              {user ? (
+                <span className="text-xs text-green-800 font-medium">
+                  Signed in: quote will be saved permanently to your MandiLens cloud account.
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onOpenAuth}
+                  className="text-xs font-semibold text-green-800 hover:underline"
+                >
+                  Sign in with Google to sync quotes permanently across devices
+                </button>
+              )}
+
+              <div className="flex items-center gap-3 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowQuoteForm(false);
+                    setQuoteError('');
+                  }}
+                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 whitespace-nowrap"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingQuote}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 disabled:opacity-60 transition-colors whitespace-nowrap"
+                >
+                  {isSubmittingQuote
+                    ? 'Saving to Cloud...'
+                    : user
+                    ? 'Save Quote to Cloud'
+                    : 'Save Quote to Session'}
+                </button>
+              </div>
             </div>
           </form>
         )}

@@ -1,14 +1,35 @@
-import React, { useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, LogIn } from 'lucide-react';
+import { SupplyChainRole, useAuth } from '../context/AuthContext';
 
-export const AlertSubscription: React.FC = () => {
-  const [role, setRole] = useState('FPO / Farmer Collective');
+interface AlertSubscriptionProps {
+  onOpenAuth: () => void;
+}
+
+export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth }) => {
+  const { user, profile, addCloudSubscription } = useAuth();
+  const [role, setRole] = useState<SupplyChainRole>('FPO / Farmer Collective');
   const [commodity, setCommodity] = useState('Onion & Horticulture');
   const [region, setRegion] = useState('Maharashtra — Nashik / Pune');
   const [contact, setContact] = useState('');
   const [organization, setOrganization] = useState('');
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Pre-fill defaults from authenticated profile when signed in
+  useEffect(() => {
+    if (profile) {
+      setRole(profile.supplyChainRole);
+      setRegion(profile.regionCluster);
+      if (!organization) {
+        setOrganization(profile.displayName);
+      }
+    }
+    if (user?.email && !contact) {
+      setContact(user.email);
+    }
+  }, [profile, user]);
 
   const validateContact = (val: string) => {
     const trimmed = val.trim();
@@ -17,18 +38,37 @@ export const AlertSubscription: React.FC = () => {
     return emailRegex.test(trimmed) || phoneRegex.test(trimmed.replace(/\s+/g, ''));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!organization.trim()) {
-      setError('Enter your FPO, farm, or company name.');
+    if (organization.trim().length < 2) {
+      setError('Enter your FPO, farm, or company name (at least 2 characters).');
       return;
     }
     if (!validateContact(contact)) {
       setError('Enter a valid 10-digit Indian mobile number or work email address.');
       return;
     }
+
     setError('');
-    setSubmitted(true);
+    if (user) {
+      setIsSaving(true);
+      try {
+        await addCloudSubscription({
+          organization: organization.trim(),
+          supplyChainRole: role,
+          commodityGroup: commodity,
+          regionCluster: region,
+          contact: contact.trim(),
+        });
+        setSubmitted(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to save alert digest.');
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      setSubmitted(true);
+    }
   };
 
   return (
@@ -72,7 +112,11 @@ export const AlertSubscription: React.FC = () => {
                 <div className="p-6 sm:p-8 bg-slate-50 border border-slate-200 rounded-xl">
                   <div className="flex items-center gap-2.5 text-green-800 font-semibold text-base">
                     <CheckCircle2 className="w-5 h-5 shrink-0" />
-                    <span>Corridor Price Digest Activated</span>
+                    <span>
+                      {user
+                        ? 'Corridor Price Digest Synced to Account'
+                        : 'Corridor Price Digest Activated'}
+                    </span>
                   </div>
                   <p className="mt-3 text-sm text-slate-700 leading-relaxed">
                     Daily auction sheets for <strong className="text-slate-900">{commodity}</strong>{' '}
@@ -82,13 +126,12 @@ export const AlertSubscription: React.FC = () => {
                     </span>{' '}
                     starting at 07:30 AM IST tomorrow.
                   </p>
-                  <div className="mt-5 pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+                  <div className="mt-5 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                     <span>Organization: {organization}</span>
                     <button
                       type="button"
                       onClick={() => {
                         setSubmitted(false);
-                        setContact('');
                       }}
                       className="font-semibold text-green-800 hover:underline whitespace-nowrap"
                     >
@@ -109,7 +152,7 @@ export const AlertSubscription: React.FC = () => {
                       <select
                         id="sub-role"
                         value={role}
-                        onChange={(e) => setRole(e.target.value)}
+                        onChange={(e) => setRole(e.target.value as SupplyChainRole)}
                         className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-green-800"
                       >
                         <option value="FPO / Farmer Collective">FPO / Farmer Collective</option>
@@ -158,6 +201,7 @@ export const AlertSubscription: React.FC = () => {
                       <input
                         id="sub-org"
                         type="text"
+                        maxLength={100}
                         value={organization}
                         onChange={(e) => setOrganization(e.target.value)}
                         placeholder="e.g. Sahyadri Krishi FPO"
@@ -193,6 +237,9 @@ export const AlertSubscription: React.FC = () => {
                         <option value="Gujarat & Rajasthan — West Corridor">
                           Gujarat &amp; Rajasthan — West Corridor
                         </option>
+                        <option value="Andhra Pradesh & Telangana — Spice Corridor">
+                          Andhra Pradesh &amp; Telangana — Spice Corridor
+                        </option>
                       </select>
                     </div>
                   </div>
@@ -207,6 +254,7 @@ export const AlertSubscription: React.FC = () => {
                     <input
                       id="sub-contact"
                       type="text"
+                      maxLength={160}
                       value={contact}
                       onChange={(e) => setContact(e.target.value)}
                       placeholder="e.g. 9823012345 or procurement@fpo.org"
@@ -220,12 +268,26 @@ export const AlertSubscription: React.FC = () => {
                     </p>
                   )}
 
-                  <button
-                    type="submit"
-                    className="w-full sm:w-auto px-6 py-3 text-sm font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 transition-colors duration-150 whitespace-nowrap"
-                  >
-                    Subscribe to Daily Mandi Sheet
-                  </button>
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="px-6 py-3 text-sm font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 disabled:opacity-60 transition-colors duration-150 whitespace-nowrap"
+                    >
+                      {isSaving ? 'Saving Digest...' : 'Subscribe to Daily Mandi Sheet'}
+                    </button>
+
+                    {!user && (
+                      <button
+                        type="button"
+                        onClick={onOpenAuth}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-green-800 whitespace-nowrap"
+                      >
+                        <LogIn className="w-3.5 h-3.5" />
+                        <span>Sign in with Google to manage alerts</span>
+                      </button>
+                    )}
+                  </div>
                 </form>
               )}
             </div>

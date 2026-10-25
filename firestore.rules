@@ -1,0 +1,380 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Global Hardened Primitives
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidSupplyChainRole(role) {
+      return role is string &&
+        role.size() >= 1 &&
+        role.size() <= 50 &&
+        (
+          role == 'FPO / Farmer Collective' ||
+          role == 'Independent Grower' ||
+          role == 'Commodity Buyer / Processor' ||
+          role == 'Cold Chain & Transport Fleet'
+        );
+    }
+
+    function hasActiveParentUser(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid;
+    }
+
+    // =========================================================================
+    // Validation Blueprints (Synchronized verbatim with firebase-blueprint.json)
+    // =========================================================================
+    function isValidUserProfile(data) {
+      return data.keys().hasAll([
+          'uid',
+          'displayName',
+          'supplyChainRole',
+          'regionCluster',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'supplyChainRole',
+          'regionCluster',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.uid == request.auth.uid &&
+        isValidId(data.uid) &&
+        data.displayName is string &&
+        data.displayName.size() >= 1 &&
+        data.displayName.size() <= 80 &&
+        isValidSupplyChainRole(data.supplyChainRole) &&
+        data.regionCluster is string &&
+        data.regionCluster.size() >= 2 &&
+        data.regionCluster.size() <= 80 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data) {
+      return data.keys().hasAll(['ownerId', 'email', 'updatedAt']) &&
+        data.keys().hasOnly(['ownerId', 'email', 'updatedAt']) &&
+        data.ownerId == request.auth.uid &&
+        isValidId(data.ownerId) &&
+        data.email is string &&
+        data.email.size() >= 3 &&
+        data.email.size() <= 160 &&
+        data.email == request.auth.token.email &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidWatchlistItem(data) {
+      return data.keys().hasAll(['ownerId', 'lotId', 'createdAt']) &&
+        data.keys().hasOnly(['ownerId', 'lotId', 'createdAt']) &&
+        data.ownerId == request.auth.uid &&
+        isValidId(data.ownerId) &&
+        isValidId(data.lotId) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidAlertSubscription(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'organization',
+          'supplyChainRole',
+          'commodityGroup',
+          'regionCluster',
+          'contact',
+          'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'organization',
+          'supplyChainRole',
+          'commodityGroup',
+          'regionCluster',
+          'contact',
+          'createdAt'
+        ]) &&
+        data.ownerId == request.auth.uid &&
+        isValidId(data.ownerId) &&
+        data.organization is string &&
+        data.organization.size() >= 2 &&
+        data.organization.size() <= 100 &&
+        isValidSupplyChainRole(data.supplyChainRole) &&
+        data.commodityGroup is string &&
+        data.commodityGroup.size() >= 2 &&
+        data.commodityGroup.size() <= 80 &&
+        data.regionCluster is string &&
+        data.regionCluster.size() >= 2 &&
+        data.regionCluster.size() <= 80 &&
+        data.contact is string &&
+        data.contact.size() >= 5 &&
+        data.contact.size() <= 160 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidFieldQuote(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'commodity',
+          'variety',
+          'category',
+          'mandi',
+          'district',
+          'state',
+          'grade',
+          'modalPrice',
+          'minPrice',
+          'maxPrice',
+          'arrivalsQtl',
+          'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'commodity',
+          'variety',
+          'category',
+          'mandi',
+          'district',
+          'state',
+          'grade',
+          'modalPrice',
+          'minPrice',
+          'maxPrice',
+          'arrivalsQtl',
+          'createdAt'
+        ]) &&
+        data.ownerId == request.auth.uid &&
+        isValidId(data.ownerId) &&
+        data.commodity is string &&
+        data.commodity.size() >= 2 &&
+        data.commodity.size() <= 60 &&
+        data.variety is string &&
+        data.variety.size() >= 2 &&
+        data.variety.size() <= 80 &&
+        data.category is string &&
+        data.category.size() <= 40 &&
+        (
+          data.category == 'Cereals & Pulses' ||
+          data.category == 'Vegetables' ||
+          data.category == 'Oilseeds & Spices'
+        ) &&
+        data.mandi is string &&
+        data.mandi.size() >= 2 &&
+        data.mandi.size() <= 80 &&
+        data.district is string &&
+        data.district.size() >= 2 &&
+        data.district.size() <= 60 &&
+        data.state is string &&
+        data.state.size() >= 2 &&
+        data.state.size() <= 50 &&
+        data.grade is string &&
+        data.grade.size() >= 2 &&
+        data.grade.size() <= 50 &&
+        data.modalPrice is number &&
+        data.modalPrice >= 200 &&
+        data.modalPrice <= 50000 &&
+        data.minPrice is number &&
+        data.minPrice >= 100 &&
+        data.minPrice <= data.modalPrice &&
+        data.maxPrice is number &&
+        data.maxPrice >= data.modalPrice &&
+        data.maxPrice <= 60000 &&
+        data.arrivalsQtl is number &&
+        data.arrivalsQtl >= 10 &&
+        data.arrivalsQtl <= 1000000 &&
+        data.createdAt is timestamp;
+    }
+
+    // =========================================================================
+    // 1. /users/{userId} (Non-PII Profile)
+    // =========================================================================
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isVerifiedUser() &&
+        isOwner(userId) &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidUserProfile(incoming()) &&
+        isOwner(userId) &&
+        isValidId(userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          // Action: Update Profile Preferences
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'displayName',
+            'supplyChainRole',
+            'regionCluster',
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if false;
+
+      // =======================================================================
+      // 2. /users/{userId}/private/{docId} (Split-Collection PII Isolation)
+      // =======================================================================
+      match /private/{docId} {
+        allow get: if isVerifiedUser() &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(docId) &&
+          docId == 'info' &&
+          hasActiveParentUser(userId);
+
+        allow list: if false;
+
+        allow create: if isVerifiedUser() &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(docId) &&
+          docId == 'info' &&
+          isValidUserPrivateInfo(incoming()) &&
+          incoming().updatedAt == request.time &&
+          hasActiveParentUser(userId);
+
+        allow update: if isVerifiedUser() &&
+          isValidUserPrivateInfo(incoming()) &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(docId) &&
+          docId == 'info' &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().updatedAt == request.time &&
+          (
+            // Action: Sync Verified Email Timestamp
+            incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt'])
+          ) &&
+          hasActiveParentUser(userId);
+
+        allow delete: if false;
+      }
+
+      // =======================================================================
+      // 3. /users/{userId}/watchlist/{lotId}
+      // =======================================================================
+      match /watchlist/{lotId} {
+        allow get: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(lotId) &&
+          existing().ownerId == request.auth.uid &&
+          hasActiveParentUser(userId);
+
+        // Pillar 8: Explicit resource.data check with ZERO get()/exists() calls
+        allow list: if isOwner(userId) &&
+          existing().ownerId == request.auth.uid;
+
+        allow create: if isVerifiedUser() &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(lotId) &&
+          isValidWatchlistItem(incoming()) &&
+          incoming().lotId == lotId &&
+          incoming().createdAt == request.time &&
+          hasActiveParentUser(userId);
+
+        allow update: if false;
+
+        allow delete: if isVerifiedUser() &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(lotId) &&
+          existing().ownerId == request.auth.uid &&
+          hasActiveParentUser(userId);
+      }
+
+      // =======================================================================
+      // 4. /users/{userId}/subscriptions/{subscriptionId}
+      // =======================================================================
+      match /subscriptions/{subscriptionId} {
+        allow get: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(subscriptionId) &&
+          existing().ownerId == request.auth.uid &&
+          hasActiveParentUser(userId);
+
+        // Pillar 8: Explicit resource.data check with ZERO get()/exists() calls
+        allow list: if isOwner(userId) &&
+          existing().ownerId == request.auth.uid;
+
+        allow create: if isVerifiedUser() &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(subscriptionId) &&
+          isValidAlertSubscription(incoming()) &&
+          incoming().createdAt == request.time &&
+          hasActiveParentUser(userId);
+
+        allow update: if false;
+
+        allow delete: if isVerifiedUser() &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(subscriptionId) &&
+          existing().ownerId == request.auth.uid &&
+          hasActiveParentUser(userId);
+      }
+    }
+
+    // =========================================================================
+    // 5. /fieldQuotes/{quoteId} (Authenticated User Field Quotes)
+    // =========================================================================
+    match /fieldQuotes/{quoteId} {
+      allow get: if isSignedIn() &&
+        isValidId(quoteId) &&
+        existing().ownerId == request.auth.uid;
+
+      // Pillar 8: Explicit resource.data owner enforcement, zero get()/exists()
+      allow list: if isSignedIn() &&
+        existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(quoteId) &&
+        isValidFieldQuote(incoming()) &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(incoming().ownerId));
+
+      allow update: if false;
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(quoteId) &&
+        existing().ownerId == request.auth.uid;
+    }
+  }
+}

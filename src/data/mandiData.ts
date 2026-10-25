@@ -1,5 +1,17 @@
 export type CropCategory = 'Cereals & Pulses' | 'Vegetables' | 'Oilseeds & Spices';
 
+export type DatasetScenarioId = 'kharif-baseline' | 'rabi-glut' | 'monsoon-crunch';
+
+export interface DatasetScenarioMeta {
+  id: DatasetScenarioId;
+  name: string;
+  seasonTag: string;
+  description: string;
+  freightMultiplier: number;
+  shrinkageMultiplier: number;
+  arrivalNote: string;
+}
+
 export interface DailyPoint {
   day: string;
   modal: number;
@@ -18,6 +30,7 @@ export interface SupplyChainSplit {
 
 export interface MandiLotRecord {
   id: string;
+  apmcCode: string;
   commodity: string;
   variety: string;
   category: CropCategory;
@@ -63,9 +76,85 @@ export interface ArbitrageCorridor {
   mandis: CandidateMandiOption[];
 }
 
+export type DealWorkflowStage =
+  | 'Assay Posted'
+  | 'Parity Matched'
+  | 'Moisture Verified'
+  | 'Dispatch Cleared';
+
+export interface TradeDealRecord {
+  id: string;
+  referenceCode: string;
+  commodity: string;
+  variety: string;
+  benchmarkMandi: string;
+  sellerName: string;
+  buyerName: string;
+  quantityQtl: number;
+  moisturePct: number;
+  mandiModalQtl: number;
+  agreedParityPriceQtl: number;
+  sellerBonusPerQtl: number;
+  buyerSavingsPerQtl: number;
+  stage: DealWorkflowStage;
+  createdAt: string;
+}
+
+export interface CalculatorSnapshotSummary {
+  corridorLabel: string;
+  lotQtl: number;
+  bestMandiName: string;
+  bestNetPerQtl: number;
+  bestNetTotalInr: number;
+  runnerUpName: string;
+  advantageTotalInr: number;
+  evaluatedMarkets: Array<{
+    name: string;
+    distanceKm: number;
+    modalPriceQtl: number;
+    totalDeductionsInr: number;
+    netPerQtl: number;
+    netTotalInr: number;
+  }>;
+}
+
+export const DATASET_SCENARIOS: DatasetScenarioMeta[] = [
+  {
+    id: 'kharif-baseline',
+    name: 'Kharif Peak Clearing (Baseline)',
+    seasonTag: 'Oct 2026 · Balanced Gate Arrivals',
+    description:
+      'Standard post-monsoon morning auction clearing across 15+ regulated APMC yards with normal diesel backhaul availability and dry-cured arrivals.',
+    freightMultiplier: 1.0,
+    shrinkageMultiplier: 1.0,
+    arrivalNote: 'Normal gate queues (14-day rolling parity)',
+  },
+  {
+    id: 'rabi-glut',
+    name: 'Rabi Harvest Glut Simulation',
+    seasonTag: 'Mar–Apr Peak · +42% Gate Arrivals',
+    description:
+      'Simulates bumper grain and pulse arrivals crowding local taluka sub-yards, compressing local modal rates by 7%–11% while widening interstate mill arbitrage.',
+    freightMultiplier: 1.08,
+    shrinkageMultiplier: 0.85,
+    arrivalNote: 'Heavy tractor queues (+42% inward volume)',
+  },
+  {
+    id: 'monsoon-crunch',
+    name: 'Monsoon Perishable & Freight Crunch',
+    seasonTag: 'Jul–Aug · High Moisture & Tight Fleet',
+    description:
+      'Simulates wet-spell horticulture supply shortages (+18% vegetable modal spike), elevated grain moisture risk, and +24% highway transit freight & shrinkage.',
+    freightMultiplier: 1.24,
+    shrinkageMultiplier: 1.35,
+    arrivalNote: 'Weather-disrupted inward arrivals (−26% volume)',
+  },
+];
+
 export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   {
     id: 'lot-lasalgaon-onion',
+    apmcCode: 'MH-NSK-01',
     commodity: 'Onion',
     variety: 'Red Nashik Summer',
     category: 'Vegetables',
@@ -105,6 +194,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-pimpalgaon-onion',
+    apmcCode: 'MH-NSK-04',
     commodity: 'Onion',
     variety: 'Red Export Crate',
     category: 'Vegetables',
@@ -144,6 +234,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-vashi-onion',
+    apmcCode: 'MH-NVM-02',
     commodity: 'Onion',
     variety: 'Red Graded Medium',
     category: 'Vegetables',
@@ -183,6 +274,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-sehore-wheat',
+    apmcCode: 'MP-SEH-01',
     commodity: 'Wheat',
     variety: 'Sharbati Golden',
     category: 'Cereals & Pulses',
@@ -222,6 +314,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-khanna-wheat',
+    apmcCode: 'PB-LDH-03',
     commodity: 'Wheat',
     variety: 'Dara Milling FAQ',
     category: 'Cereals & Pulses',
@@ -261,6 +354,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-karnal-rice',
+    apmcCode: 'HR-KRN-02',
     commodity: 'Rice (Paddy)',
     variety: 'Pusa Basmati 1509',
     category: 'Cereals & Pulses',
@@ -300,6 +394,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-indore-soybean',
+    apmcCode: 'MP-IND-01',
     commodity: 'Soybean',
     variety: 'Yellow JS-9560',
     category: 'Oilseeds & Spices',
@@ -339,6 +434,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-latur-soybean',
+    apmcCode: 'MH-LTR-01',
     commodity: 'Soybean',
     variety: 'Yellow Solvent Grade',
     category: 'Oilseeds & Spices',
@@ -378,6 +474,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-kolar-tomato',
+    apmcCode: 'KA-KLR-01',
     commodity: 'Tomato',
     variety: 'Hybrid Firm Crate',
     category: 'Vegetables',
@@ -417,6 +514,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-agra-potato',
+    apmcCode: 'UP-AGR-02',
     commodity: 'Potato',
     variety: 'Kufri Jyoti Cold-Store',
     category: 'Vegetables',
@@ -456,6 +554,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-kalaburagi-tur',
+    apmcCode: 'KA-KLB-01',
     commodity: 'Tur (Arhar)',
     variety: 'Maruti Red Whole',
     category: 'Cereals & Pulses',
@@ -495,6 +594,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-bikaner-chana',
+    apmcCode: 'RJ-BKN-01',
     commodity: 'Chana (Gram)',
     variety: 'Desi Bold Milling',
     category: 'Cereals & Pulses',
@@ -534,6 +634,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-guntur-chilli',
+    apmcCode: 'AP-GNT-01',
     commodity: 'Red Chilli',
     variety: 'Teja S17 Dry Stemless',
     category: 'Oilseeds & Spices',
@@ -573,6 +674,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-nizamabad-turmeric',
+    apmcCode: 'TG-NZB-01',
     commodity: 'Turmeric',
     variety: 'Polished Finger',
     category: 'Oilseeds & Spices',
@@ -612,6 +714,7 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
   },
   {
     id: 'lot-rajkot-cotton',
+    apmcCode: 'GJ-RJK-01',
     commodity: 'Cotton (Kapas)',
     variety: 'Shankar-6 Long Staple',
     category: 'Oilseeds & Spices',
@@ -648,6 +751,269 @@ export const INITIAL_MANDI_RECORDS: MandiLotRecord[] = [
       interstateLogistics: 270,
       terminalLandedPrice: 7760,
     },
+  },
+];
+
+export const SAMPLE_BATCH_LOTS: MandiLotRecord[] = [
+  {
+    id: 'lot-sample-davanagere-maize',
+    apmcCode: 'KA-DVG-05',
+    commodity: 'Maize (Corn)',
+    variety: 'Yellow Poultry Feed',
+    category: 'Cereals & Pulses',
+    mandi: 'Davanagere APMC',
+    district: 'Davanagere',
+    state: 'Karnataka',
+    grade: 'FAQ Starch 62%+',
+    moistureSpec: 'Max 13.5% H2O',
+    minPrice: 2140,
+    maxPrice: 2460,
+    modalPrice: 2325,
+    change24hPct: 2.1,
+    arrivalsQtl: 13400,
+    defaultDistanceKm: 42,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 22,
+    updatedAgo: 'Sample batch',
+    corridorId: 'corridor-wheat-mp',
+    history7d: [
+      { day: '18 Oct', modal: 2230, arrivals: 14800 },
+      { day: '19 Oct', modal: 2245, arrivals: 14500 },
+      { day: '20 Oct', modal: 2260, arrivals: 14200 },
+      { day: '21 Oct', modal: 2275, arrivals: 13900 },
+      { day: '22 Oct', modal: 2280, arrivals: 13800 },
+      { day: '23 Oct', modal: 2278, arrivals: 13700 },
+      { day: '24 Oct', modal: 2325, arrivals: 13400 },
+    ],
+    supplyChain: {
+      farmgateNet: 2090,
+      gradingPackaging: 65,
+      localFreight: 95,
+      mandiCessCommission: 75,
+      modalAuctionPrice: 2325,
+      interstateLogistics: 250,
+      terminalLandedPrice: 2575,
+    },
+  },
+  {
+    id: 'lot-sample-alwar-mustard',
+    apmcCode: 'RJ-ALW-02',
+    commodity: 'Mustard Seed',
+    variety: 'Black Rapeseed 42% Oil',
+    category: 'Oilseeds & Spices',
+    mandi: 'Alwar Krishi Upaj Mandi',
+    district: 'Alwar',
+    state: 'Rajasthan',
+    grade: 'Grade A Kachchi Ghani',
+    moistureSpec: 'Max 8.0% H2O',
+    minPrice: 5620,
+    maxPrice: 6190,
+    modalPrice: 5940,
+    change24hPct: 1.7,
+    arrivalsQtl: 10900,
+    defaultDistanceKm: 50,
+    mandiFeePct: 1.6,
+    hamaliPerQtl: 25,
+    updatedAgo: 'Sample batch',
+    corridorId: 'corridor-soybean-malwa',
+    history7d: [
+      { day: '18 Oct', modal: 5790, arrivals: 11800 },
+      { day: '19 Oct', modal: 5810, arrivals: 11600 },
+      { day: '20 Oct', modal: 5835, arrivals: 11500 },
+      { day: '21 Oct', modal: 5850, arrivals: 11300 },
+      { day: '22 Oct', modal: 5840, arrivals: 11400 },
+      { day: '23 Oct', modal: 5860, arrivals: 11200 },
+      { day: '24 Oct', modal: 5940, arrivals: 10900 },
+    ],
+    supplyChain: {
+      farmgateNet: 5595,
+      gradingPackaging: 85,
+      localFreight: 125,
+      mandiCessCommission: 135,
+      modalAuctionPrice: 5940,
+      interstateLogistics: 270,
+      terminalLandedPrice: 6210,
+    },
+  },
+  {
+    id: 'lot-sample-solapur-pomegranate',
+    apmcCode: 'MH-SLP-03',
+    commodity: 'Pomegranate',
+    variety: 'Bhagwa Export Carton',
+    category: 'Vegetables',
+    mandi: 'Solapur Fruit APMC',
+    district: 'Solapur',
+    state: 'Maharashtra',
+    grade: 'Grade A 250g+ Fruit',
+    moistureSpec: 'Corrugated 10kg Box',
+    minPrice: 7800,
+    maxPrice: 10400,
+    modalPrice: 9250,
+    change24hPct: 4.1,
+    arrivalsQtl: 4350,
+    defaultDistanceKm: 62,
+    mandiFeePct: 1.0,
+    hamaliPerQtl: 40,
+    updatedAgo: 'Sample batch',
+    corridorId: 'corridor-onion-nashik',
+    history7d: [
+      { day: '18 Oct', modal: 8650, arrivals: 5100 },
+      { day: '19 Oct', modal: 8740, arrivals: 4950 },
+      { day: '20 Oct', modal: 8820, arrivals: 4800 },
+      { day: '21 Oct', modal: 8890, arrivals: 4700 },
+      { day: '22 Oct', modal: 8910, arrivals: 4650 },
+      { day: '23 Oct', modal: 8885, arrivals: 4600 },
+      { day: '24 Oct', modal: 9250, arrivals: 4350 },
+    ],
+    supplyChain: {
+      farmgateNet: 8540,
+      gradingPackaging: 260,
+      localFreight: 240,
+      mandiCessCommission: 210,
+      modalAuctionPrice: 9250,
+      interstateLogistics: 480,
+      terminalLandedPrice: 9730,
+    },
+  },
+];
+
+export function applyScenarioToRecords(
+  baseRecords: MandiLotRecord[],
+  scenarioId: DatasetScenarioId
+): MandiLotRecord[] {
+  if (scenarioId === 'kharif-baseline') {
+    return baseRecords;
+  }
+
+  return baseRecords.map((rec) => {
+    if (scenarioId === 'rabi-glut') {
+      const isGrainOrPulse = rec.category === 'Cereals & Pulses';
+      const priceFactor = isGrainOrPulse ? 0.91 : 0.95;
+      const arrivalFactor = isGrainOrPulse ? 1.48 : 1.28;
+      const modal = Math.round(rec.modalPrice * priceFactor);
+      const minP = Math.round(rec.minPrice * (priceFactor - 0.02));
+      const maxP = Math.round(rec.maxPrice * priceFactor);
+      const arrivals = Math.round(rec.arrivalsQtl * arrivalFactor);
+      const farmgate = Math.round(rec.supplyChain.farmgateNet * (priceFactor - 0.01));
+      const localFreight = Math.round(rec.supplyChain.localFreight * 1.08);
+      const grading = rec.supplyChain.gradingPackaging;
+      const cess = Math.max(45, modal - farmgate - localFreight - grading);
+      const interstate = Math.round(rec.supplyChain.interstateLogistics * 1.08);
+
+      return {
+        ...rec,
+        minPrice: minP,
+        maxPrice: maxP,
+        modalPrice: modal,
+        change24hPct: Number((rec.change24hPct - 3.8).toFixed(1)),
+        arrivalsQtl: arrivals,
+        history7d: rec.history7d.map((pt) => ({
+          ...pt,
+          modal: Math.round(pt.modal * priceFactor),
+          arrivals: Math.round(pt.arrivals * arrivalFactor),
+        })),
+        supplyChain: {
+          farmgateNet: farmgate,
+          gradingPackaging: grading,
+          localFreight,
+          mandiCessCommission: cess,
+          modalAuctionPrice: modal,
+          interstateLogistics: interstate,
+          terminalLandedPrice: modal + interstate,
+        },
+      };
+    }
+
+    // monsoon-crunch
+    const isPerishable = rec.category === 'Vegetables';
+    const priceFactor = isPerishable ? 1.21 : 1.07;
+    const arrivalFactor = isPerishable ? 0.68 : 0.81;
+    const modal = Math.round(rec.modalPrice * priceFactor);
+    const minP = Math.round(rec.minPrice * priceFactor);
+    const maxP = Math.round(rec.maxPrice * (priceFactor + 0.03));
+    const arrivals = Math.round(rec.arrivalsQtl * arrivalFactor);
+    const localFreight = Math.round(rec.supplyChain.localFreight * 1.24);
+    const grading = Math.round(rec.supplyChain.gradingPackaging * 1.12);
+    const cess = Math.round(rec.supplyChain.mandiCessCommission * priceFactor);
+    const farmgate = Math.max(500, modal - localFreight - grading - cess);
+    const interstate = Math.round(rec.supplyChain.interstateLogistics * 1.28);
+
+    return {
+      ...rec,
+      minPrice: minP,
+      maxPrice: maxP,
+      modalPrice: modal,
+      change24hPct: Number((rec.change24hPct + (isPerishable ? 5.2 : 1.8)).toFixed(1)),
+      arrivalsQtl: arrivals,
+      history7d: rec.history7d.map((pt) => ({
+        ...pt,
+        modal: Math.round(pt.modal * priceFactor),
+        arrivals: Math.round(pt.arrivals * arrivalFactor),
+      })),
+      supplyChain: {
+        farmgateNet: farmgate,
+        gradingPackaging: grading,
+        localFreight,
+        mandiCessCommission: cess,
+        modalAuctionPrice: modal,
+        interstateLogistics: interstate,
+        terminalLandedPrice: modal + interstate,
+      },
+    };
+  });
+}
+
+export const INITIAL_TRADE_DEALS: TradeDealRecord[] = [
+  {
+    id: 'deal-101',
+    referenceCode: 'ML-LOT-4082',
+    commodity: 'Onion',
+    variety: 'Red Nashik FAQ 55mm+',
+    benchmarkMandi: 'Lasalgaon APMC',
+    sellerName: 'Godavari Basin Onion FPO',
+    buyerName: 'Metro Fresh Retail Supply Pvt. Ltd.',
+    quantityQtl: 90,
+    moisturePct: 11.2,
+    mandiModalQtl: 2280,
+    agreedParityPriceQtl: 2355,
+    sellerBonusPerQtl: 125,
+    buyerSavingsPerQtl: 95,
+    stage: 'Moisture Verified',
+    createdAt: 'Today, 08:15 AM',
+  },
+  {
+    id: 'deal-102',
+    referenceCode: 'ML-LOT-4085',
+    commodity: 'Wheat',
+    variety: 'Sharbati Sortex Grade A',
+    benchmarkMandi: 'Sehore APMC',
+    sellerName: 'Narmada Malwa Krishi Collective',
+    buyerName: 'Annapurna Roller Flour Mills',
+    quantityQtl: 160,
+    moisturePct: 11.0,
+    mandiModalQtl: 3210,
+    agreedParityPriceQtl: 3290,
+    sellerBonusPerQtl: 110,
+    buyerSavingsPerQtl: 85,
+    stage: 'Parity Matched',
+    createdAt: 'Today, 09:05 AM',
+  },
+  {
+    id: 'deal-103',
+    referenceCode: 'ML-LOT-4089',
+    commodity: 'Soybean',
+    variety: 'Yellow JS-9560 <2% FM',
+    benchmarkMandi: 'Laxmibai Nagar APMC',
+    sellerName: 'Sonkatch Oilseed Producer Co.',
+    buyerName: 'Malwa Solvent Extractions Ltd.',
+    quantityQtl: 120,
+    moisturePct: 11.6,
+    mandiModalQtl: 4710,
+    agreedParityPriceQtl: 4795,
+    sellerBonusPerQtl: 118,
+    buyerSavingsPerQtl: 82,
+    stage: 'Dispatch Cleared',
+    createdAt: 'Yesterday, 05:40 PM',
   },
 ];
 
