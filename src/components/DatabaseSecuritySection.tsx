@@ -12,6 +12,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { DispatchOrderStatus, useAuth } from '../context/AuthContext';
+import { maskEmailAddress } from '../utils/emailSecurity';
 
 interface DatabaseSecuritySectionProps {
   onOpenAuth: () => void;
@@ -25,6 +26,7 @@ export const DatabaseSecuritySection: React.FC<DatabaseSecuritySectionProps> = (
   const {
     user,
     isAdmin,
+    isEmailVerified,
     profile,
     publishedMandiLots,
     cloudWatchlistIds,
@@ -254,8 +256,10 @@ export const DatabaseSecuritySection: React.FC<DatabaseSecuritySectionProps> = (
               <p className="mt-0.5 text-xs text-slate-500">
                 {user
                   ? isAdmin
-                    ? 'Verified Admin Session'
-                    : 'Verified Member Session'
+                    ? `${maskEmailAddress(user.email)} · Verified Admin`
+                    : isEmailVerified
+                    ? `${maskEmailAddress(user.email)} · PII Vault`
+                    : `${maskEmailAddress(user.email)} · Verify Email`
                   : 'Email isolated in /private/info'}
               </p>
             </div>

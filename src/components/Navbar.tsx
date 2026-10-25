@@ -22,8 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const shortName = (
     profile?.displayName ||
     user?.displayName ||
-    user?.email?.split('@')[0] ||
-    'Farmer'
+    'Member'
   )
     .split(' ')[0]
     .slice(0, 14);

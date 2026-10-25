@@ -1,8 +1,17 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  setPersistence,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
+  updateProfile as updateFirebaseAuthProfile,
   User,
 } from 'firebase/auth';
 import {
@@ -16,11 +25,11 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   auth,
   db,
-  googleProvider,
   handleFirestoreError,
   OperationType,
 } from '../firebase';
@@ -29,10 +38,18 @@ import {
   INITIAL_MANDI_RECORDS,
   MandiLotRecord,
 } from '../data/mandiData';
+import {
+  deriveSafeDisplayName,
+  normalizeAndValidateEmail,
+  SessionSecurityMode,
+  validatePasswordStrength,
+} from '../utils/emailSecurity';
 
 // Validation constants synchronized verbatim with firebase-blueprint.json & firestore.rules
 export const VALID_ID_REGEX = /^[a-zA-Z0-9_\-]+$/;
 export const BOOTSTRAPPED_ADMIN_EMAIL = 'nagireddyrekkala999@gmail.com';
+const LOCAL_UNVERIFIED_PROFILE_PREFIX = 'mandilens_protected_profile_v1_';
+const SESSION_MODE_STORAGE_KEY = 'mandilens_session_security_mode_v1';
 
 export const SUPPLY_CHAIN_ROLES = [
   'FPO / Farmer Collective',
@@ -149,12 +166,27 @@ export interface SignInOnboardingOptions {
   supplyChainRole?: SupplyChainRole;
   regionCluster?: string;
   applyToExisting?: boolean;
+  loginHint?: string;
+  sessionMode?: SessionSecurityMode;
+}
+
+export interface EmailAuthInput {
+  email: string;
+  password: string;
+  displayName?: string;
+  supplyChainRole?: SupplyChainRole;
+  regionCluster?: string;
+  applyToExisting?: boolean;
+  sessionMode?: SessionSecurityMode;
 }
 
 interface AuthContextValue {
   user: User | null;
   authReady: boolean;
   isAdmin: boolean;
+  isEmailVerified: boolean;
+  sessionSecurityMode: SessionSecurityMode;
+  emailProviderUnavailableFor: string | null;
   profile: UserProfileData | null;
   publishedMandiLots: MandiLotRecord[];
   cloudWatchlistIds: string[];
@@ -163,7 +195,13 @@ interface AuthContextValue {
   savedComparisons: CloudSavedComparison[];
   procurementOrders: CloudProcurementOrder[];
   authError: string | null;
+  setSessionSecurityPreference: (mode: SessionSecurityMode) => Promise<void>;
   signInWithGoogle: (options?: SignInOnboardingOptions) => Promise<boolean>;
+  signInWithEmail: (input: EmailAuthInput) => Promise<boolean>;
+  registerWithEmail: (input: EmailAuthInput) => Promise<boolean>;
+  sendPasswordReset: (email: string) => Promise<boolean>;
+  sendVerificationEmailToUser: () => Promise<boolean>;
+  refreshVerificationState: () => Promise<boolean>;
   signOutUser: () => Promise<void>;
   updateUserProfile: (updates: {
     displayName: string;
@@ -201,6 +239,44 @@ function sanitizeId(raw: string): string {
   return cleaned || `id-${Date.now()}`;
 }
 
+function readLocalFallbackProfile(uid: string): UserProfileData | null {
+  try {
+    const raw = sessionStorage.getItem(`${LOCAL_UNVERIFIED_PROFILE_PREFIX}${uid}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<UserProfileData>;
+    if (!parsed.displayName) return null;
+    return {
+      uid,
+      displayName: String(parsed.displayName).slice(0, 80),
+      supplyChainRole: SUPPLY_CHAIN_ROLES.includes(parsed.supplyChainRole as SupplyChainRole)
+        ? (parsed.supplyChainRole as SupplyChainRole)
+        : 'FPO / Farmer Collective',
+      regionCluster: String(
+        parsed.regionCluster || 'Andhra Pradesh — Anantapur / Guntur'
+      ).slice(0, 80),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalFallbackProfile(profileData: UserProfileData): void {
+  try {
+    // Never store email or PII in fallback storage — strictly non-PII workspace prefs
+    sessionStorage.setItem(
+      `${LOCAL_UNVERIFIED_PROFILE_PREFIX}${profileData.uid}`,
+      JSON.stringify({
+        uid: profileData.uid,
+        displayName: profileData.displayName,
+        supplyChainRole: profileData.supplyChainRole,
+        regionCluster: profileData.regionCluster,
+      })
+    );
+  } catch {
+    // Ignore storage restrictions
+  }
+}
+
 function buildMandiRecordFromCloudDoc(
   id: string,
   raw: Record<string, unknown>,
@@ -220,31 +296,31 @@ function buildMandiRecordFromCloudDoc(
   const localFreight = Math.round(modal * 0.05);
   const cess = Math.max(25, modal - farmgate - grading - localFreight);
   const interstate = Math.round(modal * 0.11);
-  const stateCode = String(raw.state || 'IN')
+  const apmcCode = `${String(raw.state || 'IN')
     .slice(0, 2)
-    .toUpperCase();
+    .toUpperCase()}-APMC-${id.slice(-3).toUpperCase()}`;
 
   return {
     id,
-    apmcCode: `${stateCode}-DB-${id.slice(-4).toUpperCase()}`,
+    apmcCode,
     commodity: String(raw.commodity || 'Commodity'),
     variety: String(raw.variety || 'Standard FAQ'),
     category: cat,
-    mandi: String(raw.mandi || 'Local Yard'),
-    district: String(raw.district || ''),
-    state: String(raw.state || ''),
-    grade: String(raw.grade || 'FPO Verified Lot'),
-    moistureSpec: String(raw.moistureSpec || 'Cloud Verified'),
-    minPrice: Number(raw.minPrice) || Math.round(modal * 0.91),
-    maxPrice: Number(raw.maxPrice) || Math.round(modal * 1.09),
+    mandi: String(raw.mandi || 'APMC Yard'),
+    district: String(raw.district || 'District'),
+    state: String(raw.state || 'State'),
+    grade: String(raw.grade || 'FAQ Grade'),
+    moistureSpec: String(raw.moistureSpec || 'Gate Checked'),
+    minPrice: Math.min(modal, Number(raw.minPrice) || Math.round(modal * 0.9)),
+    maxPrice: Math.max(modal, Number(raw.maxPrice) || Math.round(modal * 1.08)),
     modalPrice: modal,
     change24hPct: Number.isFinite(Number(raw.change24hPct))
       ? Number(raw.change24hPct)
-      : 1.4,
+      : 1.2,
     arrivalsQtl: arrivals,
     defaultDistanceKm: Number.isFinite(Number(raw.defaultDistanceKm))
       ? Number(raw.defaultDistanceKm)
-      : 40,
+      : 42,
     mandiFeePct: Number.isFinite(Number(raw.mandiFeePct))
       ? Number(raw.mandiFeePct)
       : 1.0,
@@ -284,6 +360,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authReady, setAuthReady] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [sessionSecurityMode, setSessionSecurityMode] = useState<SessionSecurityMode>(() => {
+    try {
+      const saved = localStorage.getItem(SESSION_MODE_STORAGE_KEY);
+      return saved === 'shared_session_only'
+        ? 'shared_session_only'
+        : 'personal_persistent';
+    } catch {
+      return 'personal_persistent';
+    }
+  });
+  const [emailProviderUnavailableFor, setEmailProviderUnavailableFor] = useState<string | null>(
+    null
+  );
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [publishedMandiLots, setPublishedMandiLots] = useState<MandiLotRecord[]>([]);
   const [cloudWatchlistIds, setCloudWatchlistIds] = useState<string[]>([]);
@@ -294,99 +384,146 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authError, setAuthError] = useState<string | null>(null);
   const pendingOnboardingRef = useRef<SignInOnboardingOptions | null>(null);
 
-  // Monitor Firebase Auth state, verify admin registry, and bootstrap non-PII profile + isolated PII doc
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      setAuthError(null);
+  const initializeUserSession = async (currentUser: User) => {
+    const verified = Boolean(currentUser.emailVerified);
+    setIsEmailVerified(verified);
 
-      if (!currentUser) {
-        setProfile(null);
-        setProfileReady(false);
-        setIsAdmin(false);
-        setCloudWatchlistIds([]);
-        setCloudFieldQuotes([]);
-        setCloudSubscriptions([]);
-        setSavedComparisons([]);
-        setProcurementOrders([]);
-        setAuthReady(true);
-        return;
+    const pending = pendingOnboardingRef.current;
+    pendingOnboardingRef.current = null;
+
+    const fallbackDisplayName = deriveSafeDisplayName(
+      pending?.displayName,
+      currentUser.displayName,
+      currentUser.email
+    );
+    const fallbackRole: SupplyChainRole =
+      pending?.supplyChainRole && SUPPLY_CHAIN_ROLES.includes(pending.supplyChainRole)
+        ? pending.supplyChainRole
+        : 'FPO / Farmer Collective';
+    const fallbackCluster = (
+      pending?.regionCluster?.trim() || 'Andhra Pradesh — Anantapur / Guntur'
+    ).slice(0, 80);
+
+    // If user signed in with an unverified email/password account, Firestore rules
+    // intentionally require email_verified == true for cloud writes.
+    // We initialize a clean, error-free protected session until email verification completes.
+    if (!verified) {
+      const existingLocal = readLocalFallbackProfile(currentUser.uid);
+      const sessionProfile: UserProfileData = existingLocal
+        ? {
+            uid: currentUser.uid,
+            displayName: pending?.displayName?.trim()
+              ? fallbackDisplayName
+              : existingLocal.displayName,
+            supplyChainRole: pending?.supplyChainRole
+              ? fallbackRole
+              : existingLocal.supplyChainRole,
+            regionCluster: pending?.regionCluster?.trim()
+              ? fallbackCluster
+              : existingLocal.regionCluster,
+          }
+        : {
+            uid: currentUser.uid,
+            displayName: fallbackDisplayName,
+            supplyChainRole: fallbackRole,
+            regionCluster: fallbackCluster,
+          };
+
+      writeLocalFallbackProfile(sessionProfile);
+      setProfile(sessionProfile);
+      setIsAdmin(false);
+      setProfileReady(false);
+      setAuthReady(true);
+      return;
+    }
+
+    const userPath = `users/${currentUser.uid}`;
+    const privatePath = `users/${currentUser.uid}/private/info`;
+
+    try {
+      const userRef = doc(db, 'users', currentUser.uid);
+      let snap;
+      try {
+        snap = await getDoc(userRef);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.GET, userPath);
       }
 
-      const userPath = `users/${currentUser.uid}`;
-      const privatePath = `users/${currentUser.uid}/private/info`;
-      const adminPath = `admins/${currentUser.uid}`;
+      if (!snap.exists()) {
+        const defaultProfile: UserProfileData = {
+          uid: currentUser.uid,
+          displayName: fallbackDisplayName,
+          supplyChainRole: fallbackRole,
+          regionCluster: fallbackCluster.length >= 2
+            ? fallbackCluster
+            : 'Andhra Pradesh — Anantapur / Guntur',
+        };
 
-      try {
-        const userRef = doc(db, 'users', currentUser.uid);
-        let snap;
-        try {
-          snap = await getDoc(userRef);
-        } catch (err) {
-          handleFirestoreError(err, OperationType.GET, userPath);
+        // Atomic creation of non-PII /users/{uid} + isolated PII /users/{uid}/private/info
+        const batch = writeBatch(db);
+        batch.set(userRef, {
+          ...defaultProfile,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        if (currentUser.email && currentUser.email.length >= 3) {
+          const privRef = doc(db, 'users', currentUser.uid, 'private', 'info');
+          batch.set(privRef, {
+            ownerId: currentUser.uid,
+            email: currentUser.email.slice(0, 160),
+            updatedAt: serverTimestamp(),
+          });
         }
 
-        const pending = pendingOnboardingRef.current;
-        pendingOnboardingRef.current = null;
+        try {
+          await batch.commit();
+        } catch (err) {
+          handleFirestoreError(err, OperationType.CREATE, userPath);
+        }
 
-        if (!snap.exists()) {
-          const initialDisplayName = (
-            pending?.displayName?.trim() ||
-            currentUser.displayName?.trim() ||
-            currentUser.email?.split('@')[0] ||
-            'MandiLens Member'
-          ).slice(0, 80);
+        setProfile(defaultProfile);
+      } else {
+        const data = snap.data();
+        const existingProfile: UserProfileData = {
+          uid: String(data.uid || currentUser.uid),
+          displayName: deriveSafeDisplayName(
+            String(data.displayName || ''),
+            currentUser.displayName,
+            currentUser.email
+          ),
+          supplyChainRole: SUPPLY_CHAIN_ROLES.includes(data.supplyChainRole)
+            ? data.supplyChainRole
+            : 'FPO / Farmer Collective',
+          regionCluster:
+            String(data.regionCluster || '').trim().length >= 2
+              ? String(data.regionCluster).slice(0, 80)
+              : 'Andhra Pradesh — Anantapur / Guntur',
+        };
 
-          const initialRole: SupplyChainRole =
-            pending?.supplyChainRole && SUPPLY_CHAIN_ROLES.includes(pending.supplyChainRole)
+        if (pending?.applyToExisting) {
+          const nextDisplayName = pending.displayName?.trim()
+            ? deriveSafeDisplayName(
+                pending.displayName,
+                existingProfile.displayName,
+                currentUser.email
+              )
+            : existingProfile.displayName;
+          const nextRole: SupplyChainRole =
+            pending.supplyChainRole && SUPPLY_CHAIN_ROLES.includes(pending.supplyChainRole)
               ? pending.supplyChainRole
-              : 'FPO / Farmer Collective';
+              : existingProfile.supplyChainRole;
+          const nextCluster =
+            pending.regionCluster && pending.regionCluster.trim().length >= 2
+              ? pending.regionCluster.trim().slice(0, 80)
+              : existingProfile.regionCluster;
 
-          const initialCluster = (
-            pending?.regionCluster?.trim() || 'Andhra Pradesh — Anantapur / Guntur'
-          ).slice(0, 80);
+          const hasChanged =
+            nextDisplayName !== existingProfile.displayName ||
+            nextRole !== existingProfile.supplyChainRole ||
+            nextCluster !== existingProfile.regionCluster;
 
-          const defaultProfile: UserProfileData = {
-            uid: currentUser.uid,
-            displayName: initialDisplayName,
-            supplyChainRole: initialRole,
-            regionCluster: initialCluster,
-          };
-
-          try {
-            await setDoc(userRef, {
-              ...defaultProfile,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
-          } catch (err) {
-            handleFirestoreError(err, OperationType.CREATE, userPath);
-          }
-
-          setProfile(defaultProfile);
-        } else {
-          const data = snap.data();
-          const existingProfile: UserProfileData = {
-            uid: String(data.uid || currentUser.uid),
-            displayName: String(data.displayName || 'MandiLens Member'),
-            supplyChainRole: SUPPLY_CHAIN_ROLES.includes(data.supplyChainRole)
-              ? data.supplyChainRole
-              : 'FPO / Farmer Collective',
-            regionCluster: String(data.regionCluster || 'Andhra Pradesh — Anantapur / Guntur'),
-          };
-
-          if (pending?.applyToExisting) {
-            const nextDisplayName = (
-              pending.displayName?.trim() || existingProfile.displayName
-            ).slice(0, 80);
-            const nextRole: SupplyChainRole =
-              pending.supplyChainRole && SUPPLY_CHAIN_ROLES.includes(pending.supplyChainRole)
-                ? pending.supplyChainRole
-                : existingProfile.supplyChainRole;
-            const nextCluster = (
-              pending.regionCluster?.trim() || existingProfile.regionCluster
-            ).slice(0, 80);
-
+          if (hasChanged) {
             try {
               await updateDoc(userRef, {
                 displayName: nextDisplayName,
@@ -406,56 +543,90 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else {
             setProfile(existingProfile);
           }
+        } else {
+          setProfile(existingProfile);
         }
 
-        // Sync isolated private email record if verified email exists
-        if (currentUser.email && currentUser.emailVerified) {
+        // Ensure isolated private email vault record exists for existing verified user
+        if (currentUser.email && currentUser.email.length >= 3) {
           const privRef = doc(db, 'users', currentUser.uid, 'private', 'info');
-          let privSnap;
           try {
-            privSnap = await getDoc(privRef);
-          } catch (err) {
-            handleFirestoreError(err, OperationType.GET, privatePath);
-          }
-
-          const safeEmail = currentUser.email.slice(0, 160);
-          if (!privSnap.exists()) {
-            try {
+            const privSnap = await getDoc(privRef);
+            if (!privSnap.exists()) {
               await setDoc(privRef, {
                 ownerId: currentUser.uid,
-                email: safeEmail,
+                email: currentUser.email.slice(0, 160),
                 updatedAt: serverTimestamp(),
               });
-            } catch (err) {
-              handleFirestoreError(err, OperationType.CREATE, privatePath);
+            }
+          } catch (privErr) {
+            // Non-blocking log if private vault is already synced
+            try {
+              handleFirestoreError(privErr, OperationType.WRITE, privatePath);
+            } catch (wrapped) {
+              console.error(wrapped);
             }
           }
         }
-
-        // Check trusted admin status (bootstrapped verified email OR /admins/{uid} doc)
-        let adminFlag = Boolean(
-          currentUser.emailVerified && currentUser.email === BOOTSTRAPPED_ADMIN_EMAIL
-        );
-        if (!adminFlag && currentUser.emailVerified) {
-          try {
-            const adminSnap = await getDoc(doc(db, 'admins', currentUser.uid));
-            adminFlag = adminSnap.exists();
-          } catch (err) {
-            handleFirestoreError(err, OperationType.GET, adminPath);
-          }
-        }
-        setIsAdmin(adminFlag);
-        setProfileReady(true);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes('Quota exceeded')) {
-          setAuthError('Daily Firestore quota exceeded. Quota resets tomorrow.');
-        } else {
-          setAuthError('Unable to initialize cloud profile.');
-        }
-      } finally {
-        setAuthReady(true);
       }
+
+      // Check trusted admin status safely so non-admin email IDs never fail initialization
+      let adminFlag = Boolean(
+        currentUser.emailVerified &&
+          currentUser.email?.toLowerCase() === BOOTSTRAPPED_ADMIN_EMAIL.toLowerCase()
+      );
+      if (!adminFlag && currentUser.emailVerified) {
+        try {
+          const adminSnap = await getDoc(doc(db, 'admins', currentUser.uid));
+          adminFlag = adminSnap.exists();
+        } catch {
+          adminFlag = false;
+        }
+      }
+
+      setIsAdmin(adminFlag);
+      setProfileReady(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Quota exceeded')) {
+        setAuthError('Daily Firestore quota exceeded. Quota resets tomorrow.');
+      } else {
+        // Fallback to local non-PII session profile so the user never hits a dead-end login screen
+        setProfile({
+          uid: currentUser.uid,
+          displayName: fallbackDisplayName,
+          supplyChainRole: fallbackRole,
+          regionCluster: fallbackCluster,
+        });
+        setProfileReady(false);
+      }
+    } finally {
+      setAuthReady(true);
+    }
+  };
+
+  // Monitor Firebase Auth state for all email & Google accounts
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      setAuthError(null);
+      setEmailProviderUnavailableFor(null);
+
+      if (!currentUser) {
+        setProfile(null);
+        setProfileReady(false);
+        setIsAdmin(false);
+        setIsEmailVerified(false);
+        setCloudWatchlistIds([]);
+        setCloudFieldQuotes([]);
+        setCloudSubscriptions([]);
+        setSavedComparisons([]);
+        setProcurementOrders([]);
+        setAuthReady(true);
+        return;
+      }
+
+      await initializeUserSession(currentUser);
     });
 
     return () => unsubscribeAuth();
@@ -496,9 +667,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubMandiLots();
   }, [authReady]);
 
-  // Attach user-scoped real-time Firestore listeners ONLY once user is authenticated and parent profile exists
+  // Attach user-scoped real-time Firestore listeners ONLY once verified parent profile exists
   useEffect(() => {
-    if (!authReady || !user || !profileReady) {
+    if (!authReady || !user || !profileReady || !isEmailVerified) {
       return;
     }
 
@@ -571,25 +742,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return {
             id: d.id,
             ownerId: String(raw.ownerId || user.uid),
-            title: String(raw.title || 'Saved Comparison'),
+            title: String(raw.title || 'Mandi Comparison'),
             commodity: String(raw.commodity || 'Commodity'),
             compareCount: raw.compareCount === 2 ? 2 : 3,
-            lotQtl: Number(raw.lotQtl) || 60,
-            packagingPerQtl: Number(raw.packagingPerQtl) || 40,
-            freightPerKmQtl: Number(raw.freightPerKmQtl) || 1.4,
+            lotQtl: Number(raw.lotQtl) || 50,
+            packagingPerQtl: Number(raw.packagingPerQtl) || 0,
+            freightPerKmQtl: Number(raw.freightPerKmQtl) || 1.2,
             shrinkagePer100Km: Number(raw.shrinkagePer100Km) || 0.8,
             marketAName: String(raw.marketAName || 'Market A'),
-            marketAPriceQtl: Number(raw.marketAPriceQtl) || 2000,
-            marketADistanceKm: Number(raw.marketADistanceKm) || 20,
+            marketAPriceQtl: Number(raw.marketAPriceQtl) || 0,
+            marketADistanceKm: Number(raw.marketADistanceKm) || 0,
             marketBName: String(raw.marketBName || 'Market B'),
-            marketBPriceQtl: Number(raw.marketBPriceQtl) || 2100,
-            marketBDistanceKm: Number(raw.marketBDistanceKm) || 45,
+            marketBPriceQtl: Number(raw.marketBPriceQtl) || 0,
+            marketBDistanceKm: Number(raw.marketBDistanceKm) || 0,
             marketCName: String(raw.marketCName || 'Market C'),
-            marketCPriceQtl: Number(raw.marketCPriceQtl) || 2300,
-            marketCDistanceKm: Number(raw.marketCDistanceKm) || 120,
-            bestMarketName: String(raw.bestMarketName || 'Market B'),
-            bestNetPerQtl: Number(raw.bestNetPerQtl) || 2000,
-            bestNetTotalInr: Number(raw.bestNetTotalInr) || 120000,
+            marketCPriceQtl: Number(raw.marketCPriceQtl) || 0,
+            marketCDistanceKm: Number(raw.marketCDistanceKm) || 0,
+            bestMarketName: String(raw.bestMarketName || 'Market A'),
+            bestNetPerQtl: Number(raw.bestNetPerQtl) || 0,
+            bestNetTotalInr: Number(raw.bestNetTotalInr) || 0,
             status: raw.status === 'locked' ? 'locked' : 'active',
           };
         });
@@ -676,23 +847,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubOrders();
       unsubQuotes();
     };
-  }, [authReady, user, profileReady]);
+  }, [authReady, user, profileReady, isEmailVerified]);
+
+  const applyBrowserPersistence = async (mode: SessionSecurityMode) => {
+    setSessionSecurityMode(mode);
+    try {
+      localStorage.setItem(SESSION_MODE_STORAGE_KEY, mode);
+    } catch {
+      // Ignore storage limits
+    }
+    try {
+      await setPersistence(
+        auth,
+        mode === 'shared_session_only'
+          ? browserSessionPersistence
+          : browserLocalPersistence
+      );
+    } catch {
+      // Continue safely if browser blocks persistence toggle in iframe
+    }
+  };
+
+  const setSessionSecurityPreference = async (mode: SessionSecurityMode) => {
+    await applyBrowserPersistence(mode);
+  };
 
   const signInWithGoogle = async (
     options?: SignInOnboardingOptions
   ): Promise<boolean> => {
     setAuthError(null);
+    setEmailProviderUnavailableFor(null);
+    if (options?.sessionMode) {
+      await applyBrowserPersistence(options.sessionMode);
+    }
     pendingOnboardingRef.current = options || null;
+
+    const provider = new GoogleAuthProvider();
+    const customParams: Record<string, string> = {
+      prompt: 'select_account',
+    };
+    if (options?.loginHint?.trim()) {
+      customParams.login_hint = options.loginHint.trim();
+    }
+    provider.setCustomParameters(customParams);
+
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(auth, provider);
       return true;
     } catch (err) {
       pendingOnboardingRef.current = null;
       const code = (err as { code?: string })?.code || '';
-      if (code === 'auth/popup-closed-by-user') {
-        setAuthError('Sign-in popup was closed before completing authentication.');
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setAuthError('Sign-in window was closed before completing authentication.');
       } else if (code === 'auth/popup-blocked') {
-        setAuthError('Sign-in popup was blocked by your browser. Please allow popups for this site.');
+        setAuthError(
+          'Browser blocked the sign-in popup. Allow popups for this site and click Continue again.'
+        );
+      } else if (code === 'auth/unauthorized-domain') {
+        setAuthError(
+          'This preview domain is not yet allowlisted in Firebase Auth Authorized Domains.'
+        );
       } else {
         setAuthError(err instanceof Error ? err.message : 'Unable to sign in with Google.');
       }
@@ -700,8 +914,184 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithEmail = async (input: EmailAuthInput): Promise<boolean> => {
+    setAuthError(null);
+    setEmailProviderUnavailableFor(null);
+
+    const emailCheck = normalizeAndValidateEmail(input.email);
+    if (!emailCheck.valid) {
+      setAuthError(emailCheck.error || 'Enter a valid email address.');
+      return false;
+    }
+    if (!input.password || input.password.length < 6) {
+      setAuthError('Enter your account password (minimum 6 characters).');
+      return false;
+    }
+
+    if (input.sessionMode) {
+      await applyBrowserPersistence(input.sessionMode);
+    }
+
+    pendingOnboardingRef.current = {
+      displayName: input.displayName,
+      supplyChainRole: input.supplyChainRole,
+      regionCluster: input.regionCluster,
+      applyToExisting: input.applyToExisting,
+    };
+
+    try {
+      await signInWithEmailAndPassword(auth, emailCheck.normalizedEmail, input.password);
+      return true;
+    } catch (err) {
+      pendingOnboardingRef.current = null;
+      const code = (err as { code?: string })?.code || '';
+      if (code === 'auth/operation-not-allowed') {
+        setEmailProviderUnavailableFor(emailCheck.normalizedEmail);
+        return false;
+      }
+      if (
+        code === 'auth/invalid-credential' ||
+        code === 'auth/wrong-password' ||
+        code === 'auth/user-not-found'
+      ) {
+        setAuthError(
+          'Incorrect email or password. If this is a new email ID, switch to Create Email Account.'
+        );
+      } else if (code === 'auth/too-many-requests') {
+        setAuthError(
+          'Too many failed attempts for this email ID. Wait a moment or reset your password.'
+        );
+      } else {
+        setAuthError(err instanceof Error ? err.message : 'Unable to sign in with email.');
+      }
+      return false;
+    }
+  };
+
+  const registerWithEmail = async (input: EmailAuthInput): Promise<boolean> => {
+    setAuthError(null);
+    setEmailProviderUnavailableFor(null);
+
+    const emailCheck = normalizeAndValidateEmail(input.email);
+    if (!emailCheck.valid) {
+      setAuthError(emailCheck.error || 'Enter a valid email address.');
+      return false;
+    }
+
+    const pwdCheck = validatePasswordStrength(input.password);
+    if (!pwdCheck.valid) {
+      setAuthError(pwdCheck.error || 'Choose a stronger password (at least 8 characters).');
+      return false;
+    }
+
+    if (input.sessionMode) {
+      await applyBrowserPersistence(input.sessionMode);
+    }
+
+    const safeName = deriveSafeDisplayName(input.displayName, null, emailCheck.normalizedEmail);
+    pendingOnboardingRef.current = {
+      displayName: safeName,
+      supplyChainRole: input.supplyChainRole,
+      regionCluster: input.regionCluster,
+      applyToExisting: true,
+    };
+
+    try {
+      const cred = await createUserWithEmailAndPassword(
+        auth,
+        emailCheck.normalizedEmail,
+        input.password
+      );
+      try {
+        await updateFirebaseAuthProfile(cred.user, { displayName: safeName });
+      } catch {
+        // Ignore non-critical displayName update failure
+      }
+      try {
+        await sendEmailVerification(cred.user);
+      } catch {
+        // Verification email can also be re-triggered manually
+      }
+      return true;
+    } catch (err) {
+      pendingOnboardingRef.current = null;
+      const code = (err as { code?: string })?.code || '';
+      if (code === 'auth/operation-not-allowed') {
+        setEmailProviderUnavailableFor(emailCheck.normalizedEmail);
+        return false;
+      }
+      if (code === 'auth/email-already-in-use') {
+        setAuthError(
+          'An account with this email ID already exists. Sign in with your password or continue with Google.'
+        );
+      } else if (code === 'auth/weak-password') {
+        setAuthError('Choose a stronger password (at least 8 characters).');
+      } else {
+        setAuthError(err instanceof Error ? err.message : 'Unable to register email account.');
+      }
+      return false;
+    }
+  };
+
+  const sendPasswordReset = async (email: string): Promise<boolean> => {
+    setAuthError(null);
+    const emailCheck = normalizeAndValidateEmail(email);
+    if (!emailCheck.valid) {
+      setAuthError(emailCheck.error || 'Enter your registered email address first.');
+      return false;
+    }
+    try {
+      await sendPasswordResetEmail(auth, emailCheck.normalizedEmail);
+      return true;
+    } catch (err) {
+      const code = (err as { code?: string })?.code || '';
+      if (code === 'auth/operation-not-allowed') {
+        setEmailProviderUnavailableFor(emailCheck.normalizedEmail);
+        return false;
+      }
+      setAuthError(err instanceof Error ? err.message : 'Unable to send password reset email.');
+      return false;
+    }
+  };
+
+  const sendVerificationEmailToUser = async (): Promise<boolean> => {
+    if (!auth.currentUser) return false;
+    setAuthError(null);
+    try {
+      await sendEmailVerification(auth.currentUser);
+      return true;
+    } catch (err) {
+      setAuthError(
+        err instanceof Error
+          ? err.message
+          : 'Wait a moment before requesting another verification email.'
+      );
+      return false;
+    }
+  };
+
+  const refreshVerificationState = async (): Promise<boolean> => {
+    if (!auth.currentUser) return false;
+    setAuthError(null);
+    try {
+      await auth.currentUser.reload();
+      await auth.currentUser.getIdToken(true);
+      const refreshed = auth.currentUser;
+      setUser(refreshed);
+      if (refreshed.emailVerified) {
+        await initializeUserSession(refreshed);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Unable to refresh verification state.');
+      return false;
+    }
+  };
+
   const signOutUser = async () => {
     setAuthError(null);
+    setEmailProviderUnavailableFor(null);
     await firebaseSignOut(auth);
   };
 
@@ -711,13 +1101,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     regionCluster: string;
   }) => {
     if (!user) return;
-    const safeName = updates.displayName.trim().slice(0, 80);
+    const safeName = deriveSafeDisplayName(updates.displayName, user.displayName, user.email);
     const safeCluster = updates.regionCluster.trim().slice(0, 80);
     if (safeName.length < 1 || safeCluster.length < 2) {
       throw new Error('Display name and market cluster are required.');
     }
     if (!SUPPLY_CHAIN_ROLES.includes(updates.supplyChainRole)) {
       throw new Error('Invalid supply chain role selected.');
+    }
+
+    const updatedProfile: UserProfileData = {
+      uid: user.uid,
+      displayName: safeName,
+      supplyChainRole: updates.supplyChainRole,
+      regionCluster: safeCluster,
+    };
+
+    if (!user.emailVerified || !profileReady) {
+      writeLocalFallbackProfile(updatedProfile);
+      setProfile(updatedProfile);
+      return;
     }
 
     const userPath = `users/${user.uid}`;
@@ -728,19 +1131,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         regionCluster: safeCluster,
         updatedAt: serverTimestamp(),
       });
-      setProfile({
-        uid: user.uid,
-        displayName: safeName,
-        supplyChainRole: updates.supplyChainRole,
-        regionCluster: safeCluster,
-      });
+      setProfile(updatedProfile);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, userPath);
     }
   };
 
   const toggleCloudWatchlist = async (lotId: string) => {
-    if (!user) return;
+    if (!user || !user.emailVerified || !profileReady) return;
     const safeLotId = sanitizeId(lotId);
     if (!VALID_ID_REGEX.test(safeLotId)) return;
 
@@ -770,6 +1168,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addCloudFieldQuote = async (input: NewFieldQuoteInput): Promise<MandiLotRecord> => {
     if (!user) {
       throw new Error('Authentication required.');
+    }
+    if (!user.emailVerified) {
+      throw new Error(
+        'Verify your email address first (or sign in with Google) to publish shared APMC quotes.'
+      );
     }
 
     const lotId = `fpo-lot-${Date.now()}`;
@@ -849,7 +1252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteCloudFieldQuote = async (quoteId: string) => {
-    if (!user) return;
+    if (!user || !user.emailVerified) return;
     const safeId = sanitizeId(quoteId);
     const quotePath = `fieldQuotes/${safeId}`;
     try {
@@ -941,6 +1344,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) {
       throw new Error('Authentication required.');
     }
+    if (!user.emailVerified) {
+      throw new Error(
+        'Verify your email address first (or sign in with Google) to save comparisons to Cloud Firestore.'
+      );
+    }
 
     const compId = `cmp-${Date.now()}`;
     const compPath = `users/${user.uid}/savedComparisons/${compId}`;
@@ -980,7 +1388,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const lockComparisonScenario = async (comparisonId: string) => {
-    if (!user) return;
+    if (!user || !user.emailVerified) return;
     const safeId = sanitizeId(comparisonId);
     const compPath = `users/${user.uid}/savedComparisons/${safeId}`;
     try {
@@ -994,7 +1402,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteComparisonScenario = async (comparisonId: string) => {
-    if (!user) return;
+    if (!user || !user.emailVerified) return;
     const safeId = sanitizeId(comparisonId);
     const compPath = `users/${user.uid}/savedComparisons/${safeId}`;
     try {
@@ -1007,6 +1415,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const createProcurementOrder = async (input: NewProcurementOrderInput) => {
     if (!user) {
       throw new Error('Authentication required.');
+    }
+    if (!user.emailVerified) {
+      throw new Error(
+        'Verify your email address first (or sign in with Google) to record cloud dispatch orders.'
+      );
     }
 
     const orderId = `ord-${Date.now()}`;
@@ -1042,7 +1455,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     orderId: string,
     nextStatus: DispatchOrderStatus
   ) => {
-    if (!user) return;
+    if (!user || !user.emailVerified) return;
     const safeId = sanitizeId(orderId);
     const orderPath = `procurementOrders/${safeId}`;
 
@@ -1057,7 +1470,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteProcurementOrder = async (orderId: string) => {
-    if (!user) return;
+    if (!user || !user.emailVerified) return;
     const safeId = sanitizeId(orderId);
     const orderPath = `procurementOrders/${safeId}`;
     try {
@@ -1075,6 +1488,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     contact: string;
   }) => {
     if (!user) return;
+    if (!user.emailVerified) {
+      throw new Error(
+        'Verify your email address first (or sign in with Google) to save cloud alert digests.'
+      );
+    }
     const subId = `sub-${Date.now()}`;
     const subPath = `users/${user.uid}/subscriptions/${subId}`;
 
@@ -1094,7 +1512,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteCloudSubscription = async (subId: string) => {
-    if (!user) return;
+    if (!user || !user.emailVerified) return;
     const safeId = sanitizeId(subId);
     const subPath = `users/${user.uid}/subscriptions/${safeId}`;
     try {
@@ -1110,6 +1528,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         authReady,
         isAdmin,
+        isEmailVerified,
+        sessionSecurityMode,
+        emailProviderUnavailableFor,
         profile,
         publishedMandiLots,
         cloudWatchlistIds,
@@ -1118,7 +1539,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         savedComparisons,
         procurementOrders,
         authError,
+        setSessionSecurityPreference,
         signInWithGoogle,
+        signInWithEmail,
+        registerWithEmail,
+        sendPasswordReset,
+        sendVerificationEmailToUser,
+        refreshVerificationState,
         signOutUser,
         updateUserProfile,
         toggleCloudWatchlist,
@@ -1133,7 +1560,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteProcurementOrder,
         addCloudSubscription,
         deleteCloudSubscription,
-        clearAuthError: () => setAuthError(null),
+        clearAuthError: () => {
+          setAuthError(null);
+          setEmailProviderUnavailableFor(null);
+        },
       }}
     >
       {children}

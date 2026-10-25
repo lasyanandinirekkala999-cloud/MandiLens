@@ -25,7 +25,8 @@ service cloud.firestore {
     // Bootstrapped Admin (verified email required to prevent email spoofing) + Trusted Registry
     function isAdmin() {
       return isVerifiedUser() && (
-        request.auth.token.email == 'nagireddyrekkala999@gmail.com' ||
+        ('email' in request.auth.token &&
+          request.auth.token.email == 'nagireddyrekkala999@gmail.com') ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
@@ -66,7 +67,8 @@ service cloud.firestore {
     }
 
     function hasActiveParentUser(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid;
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+        get(/databases/$(database)/documents/users/$(userId)).data.uid == request.auth.uid;
     }
 
     // =========================================================================
@@ -587,9 +589,13 @@ service cloud.firestore {
           docId == 'info' &&
           isValidUserPrivateInfo(incoming()) &&
           incoming().ownerId == request.auth.uid &&
+          'email' in request.auth.token &&
           incoming().email == request.auth.token.email &&
           incoming().updatedAt == request.time &&
-          hasActiveParentUser(userId);
+          (
+            hasActiveParentUser(userId) ||
+            existsAfter(/databases/$(database)/documents/users/$(userId))
+          );
 
         allow update: if isVerifiedUser() &&
           isValidUserPrivateInfo(incoming()) &&

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, LogIn } from 'lucide-react';
 import { SupplyChainRole, useAuth } from '../context/AuthContext';
-
+import { maskContactString } from '../utils/emailSecurity';
 import { LoginPortalTrack } from './LoginPage';
 
 interface AlertSubscriptionProps {
@@ -128,9 +128,9 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({
                     Daily auction sheets for <strong className="text-slate-900">{commodity}</strong>{' '}
                     in <strong className="text-slate-900">{region}</strong> will be delivered to{' '}
                     <span className="font-mono tabular-nums font-medium text-slate-900">
-                      {contact}
+                      {maskContactString(contact)}
                     </span>{' '}
-                    starting at 07:30 AM IST tomorrow.
+                    (masked for privacy) starting at 07:30 AM IST tomorrow.
                   </p>
                   <div className="mt-5 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                     <span>Organization: {organization}</span>
