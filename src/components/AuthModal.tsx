@@ -9,6 +9,7 @@ import {
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSwitchToFullLoginPage?: () => void;
 }
 
 const REGION_CLUSTERS = [
@@ -20,7 +21,11 @@ const REGION_CLUSTERS = [
   'Gujarat & Rajasthan — West Corridor',
 ];
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({
+  isOpen,
+  onClose,
+  onSwitchToFullLoginPage,
+}) => {
   const {
     user,
     isAdmin,
@@ -177,11 +182,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 type="button"
                 disabled={isBusy}
                 onClick={handleGoogleSignIn}
-                className="mt-6 w-full inline-flex items-center justify-center gap-2.5 px-5 py-3 text-sm font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 disabled:opacity-60 transition-colors whitespace-nowrap"
+                className="mt-6 w-full inline-flex items-center justify-center gap-2.5 px-5 py-3 text-sm font-semibold text-white bg-[#0F2F1E] rounded-xl hover:bg-[#16422B] disabled:opacity-60 transition-colors whitespace-nowrap"
               >
-                <LogIn className="w-4 h-4" />
+                <LogIn className="w-4 h-4 text-[#4ADE80]" />
                 <span>{isBusy ? 'Connecting to Google...' : 'Continue with Google'}</span>
               </button>
+
+              {onSwitchToFullLoginPage && (
+                <div className="mt-4 pt-3.5 border-t border-slate-100 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onSwitchToFullLoginPage();
+                    }}
+                    className="text-xs font-semibold text-[#15803D] hover:text-[#0F2F1E] hover:underline underline-offset-4 whitespace-nowrap"
+                  >
+                    Open Full-Screen Farmer &amp; Partner Login Page →
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-6">
@@ -302,13 +322,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     </span>
                   )}
 
-                  <button
-                    type="submit"
-                    disabled={isBusy}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-green-800 rounded-lg hover:bg-green-900 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0"
-                  >
-                    Save Preferences
-                  </button>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {onSwitchToFullLoginPage && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onSwitchToFullLoginPage();
+                        }}
+                        className="text-xs font-semibold text-[#15803D] hover:underline underline-offset-4 whitespace-nowrap"
+                      >
+                        Full Portal
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={isBusy}
+                      className="px-4 py-2 text-xs font-semibold text-white bg-[#0F2F1E] rounded-xl hover:bg-[#16422B] disabled:opacity-60 transition-colors whitespace-nowrap shrink-0"
+                    >
+                      Save Preferences
+                    </button>
+                  </div>
                 </div>
               </form>
 

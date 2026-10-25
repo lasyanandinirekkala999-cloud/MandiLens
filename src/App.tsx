@@ -15,6 +15,7 @@ import { DecisionReportBanner } from './components/DecisionReportBanner';
 import { DatabaseSecuritySection } from './components/DatabaseSecuritySection';
 import { AlertSubscription } from './components/AlertSubscription';
 import { AuthModal } from './components/AuthModal';
+import { LoginPage, LoginPortalTrack } from './components/LoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import {
   ARBITRAGE_CORRIDORS,
@@ -75,6 +76,23 @@ class AppErrorBoundary extends React.Component<
   }
 }
 
+function resolveInitialLoginState(): {
+  view: 'platform' | 'login';
+  track: LoginPortalTrack;
+} {
+  if (typeof window === 'undefined') {
+    return { view: 'platform', track: 'farmer' };
+  }
+  const hash = window.location.hash.toLowerCase();
+  if (hash === '#partner-login') {
+    return { view: 'login', track: 'partner' };
+  }
+  if (hash === '#login' || hash === '#farmer-login') {
+    return { view: 'login', track: 'farmer' };
+  }
+  return { view: 'platform', track: 'farmer' };
+}
+
 function MandiLensShell() {
   const {
     user,
@@ -84,7 +102,60 @@ function MandiLensShell() {
     toggleCloudWatchlist,
   } = useAuth();
 
+  const initialRoute = useMemo(() => resolveInitialLoginState(), []);
+  const [activeView, setActiveView] = useState<'platform' | 'login'>(initialRoute.view);
+  const [loginPortalTrack, setLoginPortalTrack] = useState<LoginPortalTrack>(
+    initialRoute.track
+  );
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // Sync browser hash navigation (#login, #partner-login) with dedicated Login Page
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.toLowerCase();
+      if (hash === '#partner-login') {
+        setLoginPortalTrack('partner');
+        setActiveView('login');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (hash === '#login' || hash === '#farmer-login') {
+        setLoginPortalTrack('farmer');
+        setActiveView('login');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (hash.startsWith('#') && hash.length > 1) {
+        setActiveView('platform');
+      }
+    };
+
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const handleOpenLoginPage = (track: LoginPortalTrack = 'farmer') => {
+    setLoginPortalTrack(track);
+    setActiveView('login');
+    const nextHash = track === 'partner' ? '#partner-login' : '#login';
+    if (window.location.hash !== nextHash) {
+      window.history.pushState(null, '', nextHash);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleReturnToPlatform = (targetSectionId?: string) => {
+    setActiveView('platform');
+    if (targetSectionId) {
+      window.history.pushState(null, '', `#${targetSectionId}`);
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          document
+            .getElementById(targetSectionId)
+            ?.scrollIntoView({ behavior: 'smooth' });
+        }, 40);
+      });
+    } else {
+      window.history.pushState(null, '', window.location.pathname);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Core Smart Selling Decision State (Defaults to Anantapur, Andhra Pradesh | Tomato | 20 Quintals)
   const [location, setLocation] = useState<SmartLocationId>('Anantapur, Andhra Pradesh');
@@ -221,71 +292,96 @@ function MandiLensShell() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F7F2] text-[#161A18]">
-      <Navbar onOpenAuth={() => setAuthModalOpen(true)} />
-      <main className="flex-1">
-        {/* Landing Hero with Instant Mandi Price Search & Smart Selling Decision Preview */}
-        <HeroSection
-          onApplyPreset={handleApplyHeroPreset}
-          onQuickSearch={(query) => setExternalSearchQuery(query)}
-        />
+      <Navbar
+        isLoginView={activeView === 'login'}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenLoginPage={handleOpenLoginPage}
+        onNavigateSection={handleReturnToPlatform}
+      />
 
-        {/* Main Dashboard (#dashboard): Selector, Top 4 KPI Cards, AI Recommendation Centerpiece & View Why Waterfall */}
-        <SmartDecisionOverview
-          location={location}
-          crop={crop}
-          quantityQtl={quantityQtl}
-          decision={decision}
-          onChangeLocation={setLocation}
-          onChangeCrop={setCrop}
-          onChangeQuantity={setQuantityQtl}
-          onOpenAuth={() => setAuthModalOpen(true)}
-          onAskAdvisor={handleAskAdvisorFromDashboard}
-        />
+      {activeView === 'login' ? (
+        <main className="flex-1">
+          <LoginPage
+            initialPortal={loginPortalTrack}
+            onReturnToPlatform={handleReturnToPlatform}
+            onOpenQuickModal={() => setAuthModalOpen(true)}
+          />
+        </main>
+      ) : (
+        <main className="flex-1">
+          {/* Landing Hero with Instant Mandi Price Search & Smart Selling Decision Preview */}
+          <HeroSection
+            onApplyPreset={handleApplyHeroPreset}
+            onQuickSearch={(query) => setExternalSearchQuery(query)}
+            onOpenLoginPortal={handleOpenLoginPage}
+          />
 
-        {/* Searchable Price Dashboard (#price-dashboard) + Mandi Comparison Calculator (#comparison-calculator) */}
-        <MandiBoard
-          records={allRecords}
-          externalSearchQuery={externalSearchQuery}
-          savedIds={activeSavedIds}
-          comparedIds={comparedIds}
-          onToggleSave={handleToggleSave}
-          onToggleCompare={handleToggleCompare}
-          onClearCompare={() => setComparedIds([])}
-          onJumpToCompare={handleJumpToCompare}
-          onAddFieldQuote={handleAddFieldQuote}
-          onSelectCorridor={(corridorId) => {
-            setComparedIds([]);
-            setSelectedCorridorId(corridorId);
-          }}
-          onOpenAuth={() => setAuthModalOpen(true)}
-        />
-        <ArbitrageCalculator
-          allRecords={allRecords}
-          comparedLotIds={comparedIds}
-          selectedCorridorId={selectedCorridorId}
-          externalLotQtl={quantityQtl}
-          onCorridorChange={(corridorId) => {
-            setComparedIds([]);
-            setSelectedCorridorId(corridorId);
-          }}
-          onOpenAuth={() => setAuthModalOpen(true)}
-        />
+          {/* Main Dashboard (#dashboard): Selector, Top 4 KPI Cards, AI Recommendation Centerpiece & View Why Waterfall */}
+          <SmartDecisionOverview
+            location={location}
+            crop={crop}
+            quantityQtl={quantityQtl}
+            decision={decision}
+            onChangeLocation={setLocation}
+            onChangeCrop={setCrop}
+            onChangeQuantity={setQuantityQtl}
+            onOpenAuth={() => setAuthModalOpen(true)}
+            onAskAdvisor={handleAskAdvisorFromDashboard}
+          />
 
-        {/* Price Intelligence (#price-intelligence): 7-Day Clearing + 72h Forecast & Sell Today vs Hold 48h */}
-        <PriceIntelligenceSection decision={decision} />
+          {/* Searchable Price Dashboard (#price-dashboard) + Mandi Comparison Calculator (#comparison-calculator) */}
+          <MandiBoard
+            records={allRecords}
+            externalSearchQuery={externalSearchQuery}
+            savedIds={activeSavedIds}
+            comparedIds={comparedIds}
+            onToggleSave={handleToggleSave}
+            onToggleCompare={handleToggleCompare}
+            onClearCompare={() => setComparedIds([])}
+            onJumpToCompare={handleJumpToCompare}
+            onAddFieldQuote={handleAddFieldQuote}
+            onSelectCorridor={(corridorId) => {
+              setComparedIds([]);
+              setSelectedCorridorId(corridorId);
+            }}
+            onOpenAuth={() => setAuthModalOpen(true)}
+          />
+          <ArbitrageCalculator
+            allRecords={allRecords}
+            comparedLotIds={comparedIds}
+            selectedCorridorId={selectedCorridorId}
+            externalLotQtl={quantityQtl}
+            onCorridorChange={(corridorId) => {
+              setComparedIds([]);
+              setSelectedCorridorId(corridorId);
+            }}
+            onOpenAuth={() => setAuthModalOpen(true)}
+          />
 
-        {/* AI Advisor (#ai-advisor): Server-Side Gemini 3.8 Flash Selling Economist */}
-        <AiAdvisorSection
-          decision={decision}
-          externalPromptRequest={advisorPromptRequest}
-        />
+          {/* Price Intelligence (#price-intelligence): 7-Day Clearing + 72h Forecast & Sell Today vs Hold 48h */}
+          <PriceIntelligenceSection decision={decision} />
 
-        {/* Reports & Dispatch Ledger (#reports): Printable Slip, CSV Export, Firestore Ledger & Daily Alerts */}
-        <DecisionReportBanner decision={decision} />
-        <DatabaseSecuritySection onOpenAuth={() => setAuthModalOpen(true)} />
-        <AlertSubscription onOpenAuth={() => setAuthModalOpen(true)} />
-      </main>
-      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+          {/* AI Advisor (#ai-advisor): Server-Side Gemini 3.8 Flash Selling Economist */}
+          <AiAdvisorSection
+            decision={decision}
+            externalPromptRequest={advisorPromptRequest}
+          />
+
+          {/* Reports & Dispatch Ledger (#reports): Printable Slip, CSV Export, Firestore Ledger & Daily Alerts */}
+          <DecisionReportBanner decision={decision} />
+          <DatabaseSecuritySection onOpenAuth={() => setAuthModalOpen(true)} />
+          <AlertSubscription
+            onOpenAuth={() => setAuthModalOpen(true)}
+            onOpenLoginPortal={handleOpenLoginPage}
+          />
+        </main>
+      )}
+
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSwitchToFullLoginPage={() => handleOpenLoginPage('farmer')}
+      />
     </div>
   );
 }

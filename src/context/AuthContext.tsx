@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
   onAuthStateChanged,
   signInWithPopup,
@@ -144,6 +144,13 @@ export interface NewProcurementOrderInput {
   expectedNetPerQtl: number;
 }
 
+export interface SignInOnboardingOptions {
+  displayName?: string;
+  supplyChainRole?: SupplyChainRole;
+  regionCluster?: string;
+  applyToExisting?: boolean;
+}
+
 interface AuthContextValue {
   user: User | null;
   authReady: boolean;
@@ -156,7 +163,7 @@ interface AuthContextValue {
   savedComparisons: CloudSavedComparison[];
   procurementOrders: CloudProcurementOrder[];
   authError: string | null;
-  signInWithGoogle: () => Promise<boolean>;
+  signInWithGoogle: (options?: SignInOnboardingOptions) => Promise<boolean>;
   signOutUser: () => Promise<void>;
   updateUserProfile: (updates: {
     displayName: string;
@@ -285,6 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [savedComparisons, setSavedComparisons] = useState<CloudSavedComparison[]>([]);
   const [procurementOrders, setProcurementOrders] = useState<CloudProcurementOrder[]>([]);
   const [authError, setAuthError] = useState<string | null>(null);
+  const pendingOnboardingRef = useRef<SignInOnboardingOptions | null>(null);
 
   // Monitor Firebase Auth state, verify admin registry, and bootstrap non-PII profile + isolated PII doc
   useEffect(() => {
@@ -318,18 +326,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           handleFirestoreError(err, OperationType.GET, userPath);
         }
 
+        const pending = pendingOnboardingRef.current;
+        pendingOnboardingRef.current = null;
+
         if (!snap.exists()) {
           const initialDisplayName = (
+            pending?.displayName?.trim() ||
             currentUser.displayName?.trim() ||
             currentUser.email?.split('@')[0] ||
             'MandiLens Member'
           ).slice(0, 80);
 
+          const initialRole: SupplyChainRole =
+            pending?.supplyChainRole && SUPPLY_CHAIN_ROLES.includes(pending.supplyChainRole)
+              ? pending.supplyChainRole
+              : 'FPO / Farmer Collective';
+
+          const initialCluster = (
+            pending?.regionCluster?.trim() || 'Andhra Pradesh — Anantapur / Guntur'
+          ).slice(0, 80);
+
           const defaultProfile: UserProfileData = {
             uid: currentUser.uid,
             displayName: initialDisplayName,
-            supplyChainRole: 'FPO / Farmer Collective',
-            regionCluster: 'Maharashtra — Nashik / Pune',
+            supplyChainRole: initialRole,
+            regionCluster: initialCluster,
           };
 
           try {
@@ -345,14 +366,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(defaultProfile);
         } else {
           const data = snap.data();
-          setProfile({
+          const existingProfile: UserProfileData = {
             uid: String(data.uid || currentUser.uid),
             displayName: String(data.displayName || 'MandiLens Member'),
             supplyChainRole: SUPPLY_CHAIN_ROLES.includes(data.supplyChainRole)
               ? data.supplyChainRole
               : 'FPO / Farmer Collective',
-            regionCluster: String(data.regionCluster || 'Maharashtra — Nashik / Pune'),
-          });
+            regionCluster: String(data.regionCluster || 'Andhra Pradesh — Anantapur / Guntur'),
+          };
+
+          if (pending?.applyToExisting) {
+            const nextDisplayName = (
+              pending.displayName?.trim() || existingProfile.displayName
+            ).slice(0, 80);
+            const nextRole: SupplyChainRole =
+              pending.supplyChainRole && SUPPLY_CHAIN_ROLES.includes(pending.supplyChainRole)
+                ? pending.supplyChainRole
+                : existingProfile.supplyChainRole;
+            const nextCluster = (
+              pending.regionCluster?.trim() || existingProfile.regionCluster
+            ).slice(0, 80);
+
+            try {
+              await updateDoc(userRef, {
+                displayName: nextDisplayName,
+                supplyChainRole: nextRole,
+                regionCluster: nextCluster,
+                updatedAt: serverTimestamp(),
+              });
+              setProfile({
+                uid: existingProfile.uid,
+                displayName: nextDisplayName,
+                supplyChainRole: nextRole,
+                regionCluster: nextCluster,
+              });
+            } catch (err) {
+              handleFirestoreError(err, OperationType.UPDATE, userPath);
+            }
+          } else {
+            setProfile(existingProfile);
+          }
         }
 
         // Sync isolated private email record if verified email exists
@@ -625,12 +678,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [authReady, user, profileReady]);
 
-  const signInWithGoogle = async (): Promise<boolean> => {
+  const signInWithGoogle = async (
+    options?: SignInOnboardingOptions
+  ): Promise<boolean> => {
     setAuthError(null);
+    pendingOnboardingRef.current = options || null;
     try {
       await signInWithPopup(auth, googleProvider);
       return true;
     } catch (err) {
+      pendingOnboardingRef.current = null;
       const code = (err as { code?: string })?.code || '';
       if (code === 'auth/popup-closed-by-user') {
         setAuthError('Sign-in popup was closed before completing authentication.');

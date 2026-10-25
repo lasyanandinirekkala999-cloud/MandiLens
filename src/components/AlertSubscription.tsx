@@ -2,11 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle2, LogIn } from 'lucide-react';
 import { SupplyChainRole, useAuth } from '../context/AuthContext';
 
+import { LoginPortalTrack } from './LoginPage';
+
 interface AlertSubscriptionProps {
   onOpenAuth: () => void;
+  onOpenLoginPortal: (track: LoginPortalTrack) => void;
 }
 
-export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth }) => {
+export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({
+  onOpenAuth,
+  onOpenLoginPortal,
+}) => {
   const { user, profile, addCloudSubscription } = useAuth();
   const [role, setRole] = useState<SupplyChainRole>('FPO / Farmer Collective');
   const [commodity, setCommodity] = useState('Tomato, Onion & Horticulture');
@@ -280,14 +286,26 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
                     </button>
 
                     {!user && (
-                      <button
-                        type="button"
-                        onClick={onOpenAuth}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#161A18] hover:text-[#15803D] whitespace-nowrap"
-                      >
-                        <LogIn className="w-3.5 h-3.5" />
-                        <span>Sign in with Google to manage alerts</span>
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => onOpenLoginPortal('farmer')}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#161A18] hover:text-[#15803D] whitespace-nowrap"
+                        >
+                          <LogIn className="w-3.5 h-3.5" />
+                          <span>Farmer Login Page</span>
+                        </button>
+                        <span aria-hidden="true" className="text-[#8A928C] text-xs">
+                          ·
+                        </span>
+                        <button
+                          type="button"
+                          onClick={onOpenAuth}
+                          className="text-xs font-medium text-[#4A524D] hover:text-[#0F2F1E] whitespace-nowrap"
+                        >
+                          Quick Sign-In
+                        </button>
+                      </div>
                     )}
                   </div>
                 </form>
@@ -332,6 +350,20 @@ export const AlertSubscription: React.FC<AlertSubscriptionProps> = ({ onOpenAuth
             <a href="#reports" className="hover:text-[#0F2F1E] whitespace-nowrap">
               Reports
             </a>
+            <button
+              type="button"
+              onClick={() => onOpenLoginPortal('farmer')}
+              className="hover:text-[#0F2F1E] cursor-pointer whitespace-nowrap"
+            >
+              Farmer Login
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenLoginPortal('partner')}
+              className="hover:text-[#0F2F1E] cursor-pointer whitespace-nowrap"
+            >
+              Partner Login
+            </button>
             <span className="text-[#8A928C] whitespace-nowrap">
               © {new Date().getFullYear()} MandILens AgriTech
             </span>

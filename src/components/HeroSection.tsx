@@ -6,9 +6,12 @@ import {
   SmartLocationId,
 } from '../data/mandiData';
 
+import { LoginPortalTrack } from './LoginPage';
+
 interface HeroSectionProps {
   onApplyPreset: (location: SmartLocationId, crop: SmartCropId, quantityQtl: number) => void;
   onQuickSearch: (query: string) => void;
+  onOpenLoginPortal: (track: LoginPortalTrack) => void;
 }
 
 interface PreviewPreset {
@@ -46,6 +49,7 @@ const PREVIEW_PRESETS: PreviewPreset[] = [
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onApplyPreset,
   onQuickSearch,
+  onOpenLoginPortal,
 }) => {
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PREVIEW_PRESETS[0].id);
   const [heroSearch, setHeroSearch] = useState<string>('');
@@ -186,10 +190,31 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   )
                 )}
               </div>
-              <p className="text-xs font-medium text-[#16422B]">
-                “We don&apos;t just show market prices. We tell farmers where they should sell and
-                why.”
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <p className="font-medium text-[#16422B]">
+                  “We don&apos;t just show market prices. We tell farmers where they should sell
+                  and why.”
+                </p>
+                <div className="flex items-center gap-2 text-xs font-semibold text-[#0F2F1E]">
+                  <button
+                    type="button"
+                    onClick={() => onOpenLoginPortal('farmer')}
+                    className="hover:text-[#15803D] underline underline-offset-4 whitespace-nowrap"
+                  >
+                    Farmer Login
+                  </button>
+                  <span aria-hidden="true" className="text-[#8A928C]">
+                    ·
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenLoginPortal('partner')}
+                    className="hover:text-[#15803D] underline underline-offset-4 whitespace-nowrap"
+                  >
+                    Partner Login
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 

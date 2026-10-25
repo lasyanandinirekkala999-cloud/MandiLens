@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
-import { Menu, User, UserCheck, X } from 'lucide-react';
+import { ArrowLeft, LogIn, Menu, UserCheck, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { LoginPortalTrack } from './LoginPage';
 
 interface NavbarProps {
+  isLoginView: boolean;
   onOpenAuth: () => void;
+  onOpenLoginPage: (track?: LoginPortalTrack) => void;
+  onNavigateSection: (sectionId?: string) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  isLoginView,
+  onOpenAuth,
+  onOpenLoginPage,
+  onNavigateSection,
+}) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, profile, authReady } = useAuth();
 
@@ -20,12 +29,26 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
     .slice(0, 14);
 
   const navItems = [
-    { href: '#dashboard', label: 'Smart Decision' },
-    { href: '#price-dashboard', label: 'Price Dashboard' },
-    { href: '#comparison-calculator', label: 'Comparison Calculator' },
-    { href: '#ai-advisor', label: 'AI Advisor' },
-    { href: '#reports', label: 'Reports' },
+    { id: 'dashboard', label: 'Smart Decision' },
+    { id: 'price-dashboard', label: 'Price Dashboard' },
+    { id: 'comparison-calculator', label: 'Comparison Calculator' },
+    { id: 'ai-advisor', label: 'AI Advisor' },
+    { id: 'reports', label: 'Reports' },
   ];
+
+  const handleBrandClick = (e: React.MouseEvent) => {
+    if (isLoginView) {
+      e.preventDefault();
+      onNavigateSection();
+    }
+  };
+
+  const handleSectionLinkClick = (e: React.MouseEvent, sectionId: string) => {
+    if (isLoginView) {
+      e.preventDefault();
+      onNavigateSection(sectionId);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-[#F7F7F2]/95 backdrop-blur-sm border-b border-[#E2E4DD] no-print">
@@ -33,6 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
         {/* Zone 1: Single text element wordmark */}
         <a
           href="#"
+          onClick={handleBrandClick}
           className="font-display text-xl font-bold tracking-tight text-[#0F2F1E] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#16A34A]"
         >
           Mand<span className="text-[#16A34A]">I</span>Lens
@@ -45,8 +69,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
         >
           {navItems.map((item) => (
             <a
-              key={item.href}
-              href={item.href}
+              key={item.id}
+              href={`#${item.id}`}
+              onClick={(e) => handleSectionLinkClick(e, item.id)}
               className="hover:text-[#0F2F1E] hover:underline underline-offset-4 transition-colors duration-150 whitespace-nowrap shrink-0"
             >
               {item.label}
@@ -54,15 +79,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
           ))}
         </nav>
 
-        {/* Zone 3: 1 primary action (Profile) */}
+        {/* Zone 3: 1 primary action */}
         <div className="flex items-center gap-3 shrink-0">
-          {!authReady ? (
+          {isLoginView ? (
+            <button
+              type="button"
+              onClick={() => onNavigateSection('dashboard')}
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#0F2F1E] bg-[#EFEFE8] border border-[#D5D9D2] rounded-lg hover:bg-[#E2E4DD] transition-colors duration-150 whitespace-nowrap shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Live Dashboard</span>
+            </button>
+          ) : !authReady ? (
             <button
               type="button"
               disabled
               className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-xs font-semibold text-[#4A524D] bg-[#EFEFE8] rounded-lg whitespace-nowrap shrink-0"
             >
-              Profile
+              Login
             </button>
           ) : user ? (
             <button
@@ -76,11 +110,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
           ) : (
             <button
               type="button"
-              onClick={onOpenAuth}
+              onClick={() => onOpenLoginPage('farmer')}
               className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#0F2F1E] rounded-lg hover:bg-[#16422B] transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0F2F1E]"
             >
-              <User className="w-3.5 h-3.5" />
-              <span>Profile</span>
+              <LogIn className="w-3.5 h-3.5 text-[#4ADE80]" />
+              <span>Login Portal</span>
             </button>
           )}
 
@@ -102,36 +136,57 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
           <nav className="flex flex-col space-y-2 text-sm font-medium text-[#161A18]">
             {navItems.map((item) => (
               <a
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
+                key={item.id}
+                href={`#${item.id}`}
+                onClick={(e) => {
+                  setMobileMenuOpen(false);
+                  handleSectionLinkClick(e, item.id);
+                }}
                 className="py-1.5 hover:text-[#15803D] whitespace-nowrap"
               >
                 {item.label}
               </a>
             ))}
           </nav>
-          <div className="pt-2 border-t border-[#E2E4DD]">
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenAuth();
-              }}
-              className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-[#0F2F1E] rounded-lg hover:bg-[#16422B] transition-colors whitespace-nowrap"
-            >
-              {user ? (
-                <>
-                  <UserCheck className="w-3.5 h-3.5 text-[#4ADE80]" />
-                  <span>Profile · {shortName}</span>
-                </>
-              ) : (
-                <>
-                  <User className="w-3.5 h-3.5" />
-                  <span>Profile · Sign In</span>
-                </>
-              )}
-            </button>
+          <div className="pt-2 border-t border-[#E2E4DD] flex flex-col gap-2">
+            {isLoginView ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigateSection('dashboard');
+                }}
+                className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-[#0F2F1E] bg-[#EFEFE8] rounded-lg hover:bg-[#E2E4DD] transition-colors whitespace-nowrap"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Return to Live Dashboard</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (user) {
+                    onOpenAuth();
+                  } else {
+                    onOpenLoginPage('farmer');
+                  }
+                }}
+                className="inline-flex w-full items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-white bg-[#0F2F1E] rounded-lg hover:bg-[#16422B] transition-colors whitespace-nowrap"
+              >
+                {user ? (
+                  <>
+                    <UserCheck className="w-3.5 h-3.5 text-[#4ADE80]" />
+                    <span>Profile · {shortName}</span>
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-3.5 h-3.5 text-[#4ADE80]" />
+                    <span>Open Login Portal</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       )}
